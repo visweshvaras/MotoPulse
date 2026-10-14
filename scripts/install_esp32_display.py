@@ -36,8 +36,8 @@ def init_hardware():
         scl_rec.value(1)
         time.sleep_us(5)
 
-    # 100 kHz I2C for maximum signal integrity
-    i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=100000)
+    # 400 kHz I2C for high-speed non-blocking OLED rendering
+    i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
 
     # Auto-detect I2C address (0x3C or 0x3D)
     devs = i2c.scan()

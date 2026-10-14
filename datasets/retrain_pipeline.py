@@ -126,80 +126,58 @@ def load_audio_normalized(file_path):
 
 
 def scan_and_catalog_files():
-    """Catalogs all audio files into the 8 Core classes with strict validation."""
+    """Catalogs all audio files into the 9 Core classes with strict validation."""
     catalog = {c: [] for c in CORE_CLASSES}
 
-    # 1. Good Engine Sounds: MLVRG-Car-Engine-Audio (all makes & RPMs)
-    mlvrg_files = glob.glob(os.path.join(DATASETS_DIR, "raw", "pravruthi_2.0", "MLVRG-Car-Engine-Audio", "*", "*", "*", "*.wav"))
-    for f in mlvrg_files:
-        catalog["normal_idle"].append(f)
-
-    # 2. Pravruthi training & testing
+    # 1. Normal Idle (Baseline Healthy across makes, RPMs, and cabin)
+    catalog["normal_idle"].extend(glob.glob(os.path.join(DATASETS_DIR, "raw", "pravruthi_2.0", "MLVRG-Car-Engine-Audio", "*", "*", "*", "*.wav")))
     for f in glob.glob(os.path.join(DATASETS_DIR, "raw", "pravruthi_2.0", "training", "*.wav")) + \
              glob.glob(os.path.join(DATASETS_DIR, "raw", "pravruthi_2.0", "testing", "*.wav")):
         fn = os.path.basename(f).lower()
-        if "idling" in fn or "normal engine" in fn or "background noise" in fn:
+        if "idling" in fn or "normal engine" in fn or "background noise" in fn or "air leak engine" in fn:
             catalog["normal_idle"].append(f)
-        elif "air leak" in fn:
-            catalog["exhaust_leak"].append(f)
-        elif "oil cap" in fn:
-            catalog["valve_ticking"].append(f)
+    catalog["normal_idle"].append(os.path.join(DATASETS_DIR, "11.maindataset", "fault data set pree", "soumages-car-engine-335601.mp3"))
 
-    # 3. 11.maindataset Faulty
-    for f in glob.glob(os.path.join(DATASETS_DIR, "11.maindataset", "Faulty", "*.wav")):
-        fn = os.path.basename(f).lower()
-        if "knock" in fn or "pistonslap" in fn:
-            catalog["engine_knocking"].append(f)
-        elif "bearing" in fn or "waterpump" in fn or "alternator" in fn or "idler" in fn or "shaft" in fn or "pulley" in fn:
-            catalog["bearing_wear"].append(f)
-        elif "valve" in fn or "lifter" in fn or "tappet" in fn or "timingchain" in fn or "flywheel" in fn or "mount" in fn:
-            catalog["valve_ticking"].append(f)
-        elif "belt" in fn or "clutch" in fn or "coupler" in fn:
-            catalog["belt_slippage"].append(f)
-        elif "exhaust" in fn or "vacuum" in fn or "gasket" in fn or "intake" in fn or "converter" in fn or "powersteering" in fn:
-            catalog["exhaust_leak"].append(f)
-        elif "misfire" in fn or "injector" in fn or "starter" in fn:
-            catalog["misfire"].append(f)
-        elif "turbo" in fn or "supercharger" in fn:
-            catalog["turbo_flutter"].append(f)
+    # 2. Engine Knocking (Connecting rod knock, piston slap, pre-ignition detonation)
+    for pattern in ["Fault_01_*.wav", "Fault_03_*.wav", "Fault_14_*.wav", "Fault_25_*.wav", "01_engine_knocking.wav", "knocking_honda_*.wav"]:
+        catalog["engine_knocking"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
 
-    # 4. Pree faults & sounds
-    for f in glob.glob(os.path.join(DATASETS_DIR, "11.maindataset", "fault data set pree", "*.*")):
-        fn = os.path.basename(f).lower()
-        if "muffler" in fn:
-            catalog["exhaust_leak"].append(f)
-        elif "brake" in fn:
-            catalog["brake_grinding"].append(f)
-        elif "difficult" in fn or "not-starting" in fn:
-            catalog["misfire"].append(f)
-        elif "soumages" in fn or "ignition" in fn:
-            catalog["normal_idle"].append(f)
+    # 3. Bearing Wear (Alternator, water pump, idler, wheel bearing wear)
+    for pattern in ["Fault_07_*.wav", "Fault_08_*.wav", "Fault_15_*.wav", "Fault_16_*.wav", "Fault_30_*.wav",
+                    "04_alternator_bearing*.wav", "05_water_pump_bearing*.wav", "06_clutch_release_bearing*.wav",
+                    "06_wheel_bearing*.wav", "bearing_swift_*.wav"]:
+        catalog["bearing_wear"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
 
-    # 5. Datasets/raw direct
-    for f in glob.glob(os.path.join(DATASETS_DIR, "raw", "*.*")):
-        fn = os.path.basename(f).lower()
-        if fn.endswith((".wav", ".mp3", ".ogg", ".flac")):
-            if "knock" in fn: catalog["engine_knocking"].append(f)
-            elif "bearing" in fn or "whirring" in fn: catalog["bearing_wear"].append(f)
-            elif "tick" in fn or "tappet" in fn: catalog["valve_ticking"].append(f)
-            elif "belt" in fn or "squeal" in fn: catalog["belt_slippage"].append(f)
-            elif "leak" in fn or "exhaust" in fn or "chuff" in fn: catalog["exhaust_leak"].append(f)
-            elif "misfire" in fn or "sputter" in fn: catalog["misfire"].append(f)
-            elif "brake" in fn or "grind" in fn: catalog["brake_grinding"].append(f)
-            elif "idle" in fn or "normal" in fn: catalog["normal_idle"].append(f)
+    # 4. Valve Ticking (Hydraulic lifter lash, tappet click, loose valvetrain)
+    for pattern in ["Fault_04_*.wav", "Fault_09_*.wav", "Fault_10_*.wav", "Fault_22_*.wav", "Fault_23_*.wav",
+                    "02_engine_ticking.wav", "09_injector_ticking.wav", "valve_ticking_wagonr_*.wav",
+                    "ticking.mp3", "oil cap off*.wav"]:
+        catalog["valve_ticking"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
 
-    # Processed brake recordings
-    for f in glob.glob(os.path.join(PROCESSED_DIR, "brake_*.wav")):
-        catalog["brake_grinding"].append(f)
+    # 5. Belt Slippage (Serpentine accessory belt squeal, AC clutch slip, friction wear)
+    for pattern in ["Fault_06_*.wav", "Fault_18_*.wav", "Fault_29_*.wav", "03_belt_squealing.wav", "belt_squeal_*.wav"]:
+        catalog["belt_slippage"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
 
-    # 6. Hardware recordings from audio_recordings
-    hw_recs = glob.glob(os.path.join(PROJECT_ROOT, "audio_recordings", "*.wav"))
-    for f in hw_recs:
-        catalog["normal_idle"].append(f)
+    # 6. Exhaust Leak (Exhaust manifold leak, blown head gasket chuff, muffler hole)
+    for pattern in ["Fault_02_*.wav", "Fault_28_*.wav", "Fault_21_*.wav", "02_exhaust_leak_chuffing.wav",
+                    "13_exhaust_heat_shield*.wav", "VEHCar_Damaged muffler*.wav", "Fault_17_*.wav"]:
+        catalog["exhaust_leak"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
 
-    print("📊 Audio File Catalog:")
+    # 7. Misfire (Cylinder combustion quench, rough loping misfire, dropped spark)
+    for pattern in ["Fault_05_*.wav", "Fault_24_*.wav", "08_engine_misfire*.wav", "VEHCar_Car difficult*.wav",
+                    "freesound_community-car-not-starting*.mp3"]:
+        catalog["misfire"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
+
+    # 8. Turbo Flutter (Compressor surge, wastegate chatter, intercooler leak)
+    for pattern in ["Fault_11_*.wav", "Fault_12_*.wav", "Fault_13_*.wav"]:
+        catalog["turbo_flutter"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
+
+    # 9. Brake Grinding (Rotor metal friction, pad wear indicator, brake squeal)
+    for pattern in ["04_brake_grinding.wav", "magiaz-car-brake-325519.mp3", "brake_*.wav"]:
+        catalog["brake_grinding"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
+
+    print("📊 Cleaned Audio File Catalog:")
     for c in CORE_CLASSES:
-        # Deduplicate paths
         catalog[c] = sorted(list(set(catalog[c])))
         print(f"   • {c:<16}: {len(catalog[c])} source audio files")
 

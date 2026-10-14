@@ -1376,6 +1376,122 @@
     if (state.audioNextTime > now + 0.3) {
       state.audioNextTime = now + 0.05;
     }
+  // --- Feature: Live Browser Microphone Auto-Listening (Zero Storage Ephemeral Stream) ---
+  function initBrowserMicrophoneCapture() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn('[MotoPulse Mic] Browser MediaDevices getUserMedia not supported.');
+      return;
+    }
+
+    let isMicActive = false;
+    let micCtx = null;
+    let micSource = null;
+    let micProcessor = null;
+    let lastSendTime = 0;
+
+    async function startMicCapture() {
+      if (isMicActive) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        micCtx = new AudioContextClass();
+        if (micCtx.state === 'suspended') {
+          await micCtx.resume();
+        }
+
+        const nativeSr = micCtx.sampleRate;
+        micSource = micCtx.createMediaStreamSource(stream);
+        // 4096 samples at 48kHz is ~85ms; at 16kHz is ~256ms
+        micProcessor = micCtx.createScriptProcessor(4096, 1, 1);
+
+        micProcessor.onaudioprocess = function (e) {
+          const input = e.inputBuffer.getChannelData(0);
+
+          // Downsample to 16,000 Hz if needed
+          let pcm16k;
+          if (nativeSr === 16000) {
+            pcm16k = Array.from(input);
+          } else {
+            const ratio = nativeSr / 16000.0;
+            const newLen = Math.floor(input.length / ratio);
+            pcm16k = new Float32Array(newLen);
+            for (let i = 0; i < newLen; i++) {
+              const srcIdx = Math.floor(i * ratio);
+              pcm16k[i] = input[srcIdx] || 0.0;
+            }
+          }
+
+          // Compute peak dBFS
+          let peak = 0.0001;
+          for (let i = 0; i < input.length; i++) {
+            const a = Math.abs(input[i]);
+            if (a > peak) peak = a;
+          }
+          const db = 20 * Math.log10(peak);
+          if (dom.earDbLevel) {
+            dom.earDbLevel.textContent = `Live Mic: ${db.toFixed(1)} dBFS`;
+          }
+
+          // Throttle sending to ~100ms intervals
+          const now = performance.now();
+          if (now - lastSendTime >= 95) {
+            lastSendTime = now;
+            const pcmArray = Array.from(pcm16k);
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+              state.ws.send(JSON.stringify({
+                type: "audio_pcm",
+                pcm: pcmArray
+              }));
+            }
+          }
+        };
+
+        micSource.connect(micProcessor);
+        micProcessor.connect(micCtx.destination);
+        isMicActive = true;
+        console.log('[MotoPulse Mic] 🎙️ Live vehicle audio capture active via browser microphone!');
+
+        const micPill = document.getElementById('pill-mic');
+        const micStatus = document.getElementById('mic-status');
+        if (micPill) micPill.classList.add('active');
+        if (micStatus) micStatus.textContent = 'LISTENING';
+      } catch (err) {
+        console.warn('[MotoPulse Mic] Microphone permission not granted:', err);
+        const micStatus = document.getElementById('mic-status');
+        if (micStatus) micStatus.textContent = 'CLICK TO ENABLE';
+      }
+    }
+
+    // Auto-attempt start on first user interaction on dashboard
+    const unlockEvents = ['click', 'pointerdown', 'keydown', 'touchstart'];
+    function onGesture() {
+      startMicCapture();
+      unlockEvents.forEach(evt => window.removeEventListener(evt, onGesture));
+    }
+    unlockEvents.forEach(evt => window.addEventListener(evt, onGesture, { passive: true }));
+
+    // Also trigger on listen button
+    if (dom.btnEarListen) {
+      dom.btnEarListen.addEventListener('click', function () {
+        startMicCapture();
+      });
+    }
+
+    const micPill = document.getElementById('pill-mic');
+    if (micPill) {
+      micPill.style.cursor = 'pointer';
+      micPill.addEventListener('click', function () {
+        startMicCapture();
+      });
+    }
   }
 
   // --- Feature 5: AI Predictive Prognostics Horizon Engine ---
@@ -1772,6 +1888,7 @@
     initCanvases();
     connectWebSocket();
     initLiveAudioListening();
+    initBrowserMicrophoneCapture();
     initContinualLearnerControls();
     initPredictivePrognostics();
     requestAnimationFrame(renderLoop);

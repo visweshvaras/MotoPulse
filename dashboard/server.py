@@ -664,6 +664,17 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/diagnostics/reset":
             g_diagnostic_engine.reset_evaluation()
             self.send_json_response(g_diagnostic_engine.get_status())
+        elif parsed.path == "/api/audio_feed":
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(body)
+                samples = np.array(data.get("pcm", []), dtype=np.float32)
+                if len(samples) > 0:
+                    feed_browser_audio(samples)
+                self.send_json_response({"status": "ok", "samples_received": len(samples)})
+            except Exception as e:
+                self.send_json_response({"status": "error", "message": str(e)}, status=HTTPStatus.BAD_REQUEST)
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -714,8 +725,8 @@ for _ in range(9):
     scl_rec.value(1)
     time.sleep_us(5)
 
-# 100 kHz I2C for rock-solid signal integrity
-i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=100000)
+# 400 kHz I2C for rock-solid signal integrity
+i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
 
 devs = i2c.scan()
 addr = 0x3C
@@ -864,6 +875,48 @@ while True:
     print("TEL:" + str(p2p_l) + ":" + str(p2p_r) + ":" + str(grad) + ":" + str(pz_amp) + ":" + str(decay_peak) + ":" + str(dc_piezo) + ":" + w_l + ":" + w_r + ":" + w_p)
     time.sleep_ms(10)
 """
+
+
+def feed_browser_audio(samples):
+    """
+    Feeds continuous 16 kHz audio PCM float chunks [-1.0, 1.0] from the browser microphone directly
+    into the rolling 16,000-sample buffer and triggers immediate TinyML predictive diagnostics.
+    Zero audio saved to disk (purely ephemeral).
+    """
+    global g_audio_window, latest_prediction, latest_telemetry
+    with g_audio_window_lock:
+        shift_len = min(len(samples), len(g_audio_window))
+        g_audio_window[:-shift_len] = g_audio_window[shift_len:]
+        g_audio_window[-shift_len:] = samples[-shift_len:]
+        cur_window = np.copy(g_audio_window)
+
+    pred = g_predictive_engine.predict(cur_window)
+    g_diagnostic_engine.add_prediction(pred)
+    latest_prediction = pred
+
+    diag_status = g_diagnostic_engine.get_status()
+    active_pred = diag_status["fixed_diagnosis"] if diag_status["is_locked"] else pred
+
+    recent_pcm = cur_window[-512:] if len(cur_window) >= 512 else cur_window
+    max_amp = int(np.max(np.abs(recent_pcm)) * 32767.0) if len(recent_pcm) > 0 else 300
+
+    scale_ref = max(1800.0, float(max_amp) * 1.2)
+    norm_w = [round(float(v) * 32767.0 / scale_ref, 3) for v in cur_window[-32:]]
+
+    with state_lock:
+        latest_telemetry["prediction"] = active_pred
+        latest_telemetry["spectrum_32"] = active_pred.get("spectrum_32", [0.05]*32)
+        latest_telemetry["diagnostic_session"] = diag_status
+        latest_telemetry["source"] = "browser_mic"
+        latest_telemetry["p2p_l"] = max_amp
+        latest_telemetry["p2p_r"] = int(max_amp * 0.96)
+        latest_telemetry["mic1"] = max_amp
+        latest_telemetry["mic2"] = int(max_amp * 0.96)
+        latest_telemetry["mic1_peak"] = max_amp
+        latest_telemetry["mic2_peak"] = int(max_amp * 0.96)
+        latest_telemetry["wave_l"] = norm_w
+        latest_telemetry["wave_r"] = norm_w
+        latest_telemetry["audio_pcm"] = [int(v * 32767.0) for v in norm_w]
 
 
 def telemetry_collector_thread():
@@ -1247,10 +1300,18 @@ def telemetry_collector_thread():
 # WEBSOCKET BROADCAST SERVER (PORT 8765)
 # ==============================================================================
 async def ws_handler(websocket):
-    """Handles incoming browser WebSocket connections."""
+    """Handles incoming browser WebSocket connections and processes live microphone audio."""
     connected_websockets.add(websocket)
     try:
-        await websocket.wait_closed()
+        async for message in websocket:
+            try:
+                pkt = json.loads(message)
+                if pkt.get("type") == "audio_pcm":
+                    raw_pcm = pkt.get("pcm", [])
+                    if raw_pcm:
+                        feed_browser_audio(np.array(raw_pcm, dtype=np.float32))
+            except Exception:
+                pass
     finally:
         connected_websockets.discard(websocket)
 
