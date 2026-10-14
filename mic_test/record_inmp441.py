@@ -157,20 +157,78 @@ print('ALL_SENT')
         print("[ERROR] Captured audio is empty.")
         return None, None
 
-    # Post-process: Convert to numpy, remove hardware DC bias, and apply studio normalization
-    raw_samples = np.frombuffer(pcm_data, dtype=np.int16).astype(np.float32)
-    mean_dc = np.mean(raw_samples)
-    ac_samples = raw_samples - mean_dc
+    def enhance_studio_voice(samples_16, fs=16000):
+        # 1. DC bias removal in float64 space
+        x = samples_16.astype(np.float64) - np.mean(samples_16)
+        
+        # 2. 2nd order Butterworth High-Pass at 110 Hz
+        # Eliminates sub-audible room/table rumble and 50Hz mains hum
+        fc = 110.0
+        w0 = 2.0 * np.pi * fc / fs
+        cos_w0 = np.cos(w0)
+        alpha = np.sin(w0) / (2.0 * 0.7071)
+        b0 = (1.0 + cos_w0) / 2.0
+        b1 = -(1.0 + cos_w0)
+        b2 = (1.0 + cos_w0) / 2.0
+        a0 = 1.0 + alpha
+        a1 = -2.0 * cos_w0
+        a2 = 1.0 - alpha
+        
+        y = np.zeros_like(x)
+        x1 = x2 = y1 = y2 = 0.0
+        for i in range(len(x)):
+            x0 = x[i]
+            out = (b0*x0 + b1*x1 + b2*x2 - a1*y1 - a2*y2) / a0
+            x2, x1 = x1, x0
+            y2, y1 = y1, out
+            y[i] = out
+            
+        # 3. High-shelf presence EQ (+3.5 dB at 2800 Hz)
+        # Restores vocal articulation and crispness so speech is never 'plain' or muffled
+        f0_shelf = 2800.0
+        gain_db = 3.5
+        A = 10.0 ** (gain_db / 40.0)
+        w0_s = 2.0 * np.pi * f0_shelf / fs
+        cos_s = np.cos(w0_s)
+        sin_s = np.sin(w0_s)
+        alpha_s = sin_s / 2.0 * np.sqrt((A + 1.0/A)*(1.0/0.7071 - 1.0) + 2.0)
+        
+        b0_s =    A*( (A+1.0) + (A-1.0)*cos_s + 2.0*np.sqrt(A)*alpha_s )
+        b1_s = -2.0*A*( (A-1.0) + (A+1.0)*cos_s )
+        b2_s =    A*( (A+1.0) + (A-1.0)*cos_s - 2.0*np.sqrt(A)*alpha_s )
+        a0_s =        (A+1.0) - (A-1.0)*cos_s + 2.0*np.sqrt(A)*alpha_s
+        a1_s =  2.0*( (A-1.0) - (A+1.0)*cos_s )
+        a2_s =        (A+1.0) - (A-1.0)*cos_s - 2.0*np.sqrt(A)*alpha_s
+        
+        z = np.zeros_like(y)
+        x1 = x2 = y1 = y2 = 0.0
+        for i in range(len(y)):
+            x0 = y[i]
+            out = (b0_s*x0 + b1_s*x1 + b2_s*x2 - a1_s*y1 - a2_s*y2) / a0_s
+            x2, x1 = x1, x0
+            y2, y1 = y1, out
+            z[i] = out
 
-    max_val = np.max(np.abs(ac_samples))
-    if max_val == 0:
-        max_val = 1.0
+        # 4. Smart Vocal Normalization + Soft-Knee Tanh Limiter
+        p99 = np.percentile(np.abs(z), 99.6)
+        target_p99 = 24000.0
+        scale = target_p99 / max(p99, 100.0)
+        scale = min(scale, 50.0)  # Avoid over-amplifying pure silence
+        
+        scaled = z * scale
+        knee_thresh = 26000.0
+        excess = np.maximum(0.0, np.abs(scaled) - knee_thresh)
+        compressed = np.where(
+            np.abs(scaled) > knee_thresh,
+            np.sign(scaled) * (knee_thresh + 6000.0 * np.tanh(excess / 6000.0)),
+            scaled
+        )
+        return np.clip(compressed, -32768, 32767).astype(np.int16)
 
-    # Clean studio-grade headroom normalization (85% full-scale = -1.5 dBFS)
-    scale = (32767.0 * 0.85) / max_val
-    scale = min(scale, 60.0)  # Avoid amplifying absolute silence
-
-    final_pcm = np.clip(ac_samples * scale, -32768, 32767).astype(np.int16).tobytes()
+    # Post-process: Convert to numpy and run studio voice enhancement pipeline
+    raw_samples = np.frombuffer(pcm_data, dtype=np.int16)
+    enhanced_samples = enhance_studio_voice(raw_samples, SAMPLE_RATE)
+    final_pcm = enhanced_samples.tobytes()
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     wav_path = os.path.join(RECORDINGS_DIR, f"inmp441_record_{timestamp}.wav")

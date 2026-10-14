@@ -19,15 +19,24 @@ show_menu() {
     echo "============================================================"
     echo "   🎙️  ESP32-S3 + INMP441 DIGITAL STUDIO CONTROL PANEL      "
     echo "============================================================"
-    echo "  1) 📊 Live Volume Meter (Terminal Visualizer)"
-    echo "  2) 📺 Live OLED Spectrum Analyzer (16-Band Visualizer on OLED)"
-    echo "  3) 🎯 50cm Near-Field Perimeter Demo (Single-Mic Spatial Gating)"
-    echo "  4) 🎵 Record Audio Clip (3 Seconds -> MP3 & WAV)"
-    echo "  5) 📁 Open Recordings Folder in File Manager"
-    echo "  6) 🔊 Play Latest Recording"
-    echo "  7) ❌ Exit"
+    echo "  1) 🎧 Live Mic Audio Monitor (Hear Live Sound on Speakers + VU Meter)"
+    echo "  2) 📊 Live Volume Meter (Terminal Visualizer Only)"
+    echo "  3) 📺 Live OLED Spectrum Analyzer (16-Band Visualizer on OLED)"
+    echo "  4) 🎯 50cm Near-Field Perimeter Demo (Single-Mic Spatial Gating)"
+    echo "  5) 🎵 Record Audio Clip (3 Seconds -> Studio Enhanced MP3 & WAV)"
+    echo "  6) 📁 Open Recordings Folder in File Manager"
+    echo "  7) 🔊 Play Latest Recording"
+    echo "  8) ❌ Exit"
     echo "============================================================"
-    echo -n "Select an option [1-7]: "
+    echo -n "Select an option [1-8]: "
+}
+
+run_live_feed() {
+    clear
+    echo "Starting Live Mic Audio Monitor... (Press Ctrl+C to stop)"
+    python3 "$DIR/live_mic_feed.py"
+    echo -e "\nPress Enter to return to menu..."
+    read -r
 }
 
 run_live() {
@@ -81,6 +90,10 @@ play_latest() {
 }
 
 case "$1" in
+    feed|hear|audio)
+        run_live_feed
+        exit 0
+        ;;
     live|meter|vu)
         run_live
         exit 0
@@ -111,18 +124,19 @@ while true; do
     show_menu
     read -r choice
     case "$choice" in
-        1) run_live ;;
-        2) run_oled_spectrum ;;
-        3) run_50cm_demo ;;
-        4) run_record_3 ;;
-        5) open_folder ;;
-        6) play_latest ;;
-        7|q|Q) 
+        1) run_live_feed ;;
+        2) run_live ;;
+        3) run_oled_spectrum ;;
+        4) run_50cm_demo ;;
+        5) run_record_3 ;;
+        6) open_folder ;;
+        7) play_latest ;;
+        8|q|Q) 
             echo "Exiting. Happy listening!"
             exit 0
             ;;
         *)
-            echo "Invalid choice. Please select 1-7."
+            echo "Invalid choice. Please select 1-8."
             sleep 1
             ;;
     esac
