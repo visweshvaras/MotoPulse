@@ -1,0 +1,6 @@
+file_name,label,vehicle_make_model,engine_type,rpm,distance_cm,sensor_location,recorded_by,notes
+knocking_honda_city_001.wav,engine_knocking,Honda City 1.5 i-VTEC,Petrol,1200,30,Engine Block Top,Ishan,Cold start rod knock
+bearing_swift_diesel_002.wav,bearing_wear,Maruti Swift 1.3 DDiS,Diesel,850,20,Alternator Belt Pulley,Visweshwara,Worn tensioner pulley bearing
+idle_hyundai_i20_003.wav,normal_idle,Hyundai i20 1.2 Kappa,Petrol,780,50,Closed Hood Center,Ishan,Healthy engine baseline idle
+valve_ticking_wagonr_004.wav,valve_ticking,Maruti WagonR 1.0 K10B,Petrol,900,25,Cylinder Head Valve Cover,Visweshwara,Tappet clearance noise
+belt_squeal_innova_005.wav,belt_slippage,Toyota Innova 2.5 D-4D,Diesel,1100,35,Serpentine Drive Belt,Ishan,Belt slip during AC compressor engagement

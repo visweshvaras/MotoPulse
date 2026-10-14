@@ -74,6 +74,14 @@ You can choose any of the options:
 
 ## 📂 Repository Structure
 
+```
+├── datasets/                        # Car Acoustic Dataset Hub
+│   ├── README.md                    # Dataset specifications & annotation guide
+│   ├── dataset_manifest.csv         # Master metadata manifest of all recorded samples
+│   ├── upload_dataset.py            # CLI helper to ingest & label new audio samples
+│   ├── raw/                         # Raw 16 kHz 16-bit PCM WAV recordings
+│   ├── processed/                   # Extracted FFT features & spectrogram tensors
+│   └── manifests/                   # Train/validation/test splits
 ├── motopulse_kicad/                 # KiCad 10 Hardware Design Package
 │   ├── motopulse.kicad_sch          # Schematic (0 ERC Errors)
 │   ├── motopulse.kicad_pcb          # PCB Layout (0 DRC Errors, 0 Unconnected)
@@ -98,6 +106,15 @@ You can choose any of the options:
 
 ---
 
+## 📊 Car Acoustic Dataset Hub
+
+The [`datasets/`](./datasets/) folder is set up for collaborative recording and labeling of automotive acoustic datasets:
+- **7 Target Failure Classes:** `normal_idle`, `engine_knocking`, `bearing_wear`, `valve_ticking`, `belt_slippage`, `exhaust_leak`, and `alternator_whine`.
+- **Master Manifest:** [`datasets/dataset_manifest.csv`](./datasets/dataset_manifest.csv) logs vehicle make, RPM, sensor position, and failure notes.
+- **Easy Uploader Tool:** Teammates can upload and label audio files using `python3 datasets/upload_dataset.py`.
+
+---
+
 ## 📐 Hardware Schematics & PCB (KiCad Package)
 
 The complete hardware package is available in the [`motopulse_kicad/`](./motopulse_kicad/) directory:
@@ -108,5 +125,10 @@ The complete hardware package is available in the [`motopulse_kicad/`](./motopul
 
 ---
 
-## 👥 Contributors & Collaboration
-Developed for **Hacktivate 2026**. Feel free to fork, contribute, and test edge AI vibration and acoustic models!
+## 👥 Authors & Collaborators
+
+- **Visweshwara S** ([@visweshvaras](https://github.com/visweshvaras)) — *Lead Author & Hardware/Firmware Architect*
+- **Ishan** ([@ishannvn](https://github.com/ishannvn)) — *Co-Author & Core Contributor (Datasets & Vehicle Testing)*
+
+Developed for **IEEE RUAS - Hacktivate 2026**. Feel free to fork, contribute datasets, and test edge AI vibration and acoustic models!
+
