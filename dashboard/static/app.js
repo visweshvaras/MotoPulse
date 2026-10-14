@@ -1376,6 +1376,8 @@
     if (state.audioNextTime > now + 0.3) {
       state.audioNextTime = now + 0.05;
     }
+  }
+
   // --- Feature: Live Browser Microphone Auto-Listening (Zero Storage Ephemeral Stream) ---
   function initBrowserMicrophoneCapture() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
