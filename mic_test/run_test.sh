@@ -21,7 +21,7 @@ show_menu() {
     echo "============================================================"
     echo "  1) 🎧 Live Mic Audio Monitor (Hear Live Sound on Speakers + VU Meter)"
     echo "  2) 📊 Live Volume Meter (Terminal Visualizer Only)"
-    echo "  3) 📺 Live OLED Spectrum Analyzer (16-Band Visualizer on OLED)"
+    echo "  3) 📺 Live OLED Oscilloscope Waveform (Pure Waveform on Screen, No Words)"
     echo "  4) 🎯 50cm Near-Field Perimeter Demo (Single-Mic Spatial Gating)"
     echo "  5) 🎵 Record Audio Clip (3 Seconds -> Studio Enhanced MP3 & WAV)"
     echo "  6) 📁 Open Recordings Folder in File Manager"
@@ -49,7 +49,7 @@ run_live() {
 
 run_oled_spectrum() {
     clear
-    echo "Launching OLED Live Spectrum Display... (Press Ctrl+C to stop)"
+    echo "Launching OLED Live Oscilloscope Waveform... (Press Ctrl+C to stop)"
     python3 "/home/vishwa/Documents/hacktivate/oled_spectrum/live_spectrum_oled.py"
     echo -e "\nPress Enter to return to menu..."
     read -r

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Real-Time OLED Audio Spectrum Visualizer
-Reads 16 kHz digital I2S stream from INMP441, computes frequency bins,
-and renders real-time 16-band animated EQ bars + peak hold on 0.96" OLED.
+Real-Time OLED Audio Oscilloscope (Pure Waveform Display)
+Displays ONLY the raw, fluid audio waveform trace on the 0.96" OLED screen.
+NO words, NO text, NO borders on the OLED.
+Detailed telemetry, VU meter, and status are displayed in the terminal monitor.
 """
 
 import sys
@@ -13,7 +14,7 @@ PORT = "/dev/ttyACM0"
 BAUD = 115200
 
 MICROPYTHON_CODE = '''
-import machine, framebuf, struct, math, gc
+import machine, framebuf, struct, math, time
 
 class SSD1306_I2C(framebuf.FrameBuffer):
     def __init__(self, width, height, i2c, addr=0x3C):
@@ -52,11 +53,11 @@ class SSD1306_I2C(framebuf.FrameBuffer):
         self.write_list[1] = self.buffer
         self.i2c.writevto(self.addr, self.write_list)
 
-# Initialize I2C for OLED Display at rock-solid 100 kHz (SCL=GPIO8, SDA=GPIO9)
-i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=100000)
+# Fast 400 kHz I2C for high-FPS fluid oscilloscope display
+i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
 oled = SSD1306_I2C(128, 64, i2c)
 
-# Initialize I2S for INMP441 Microphone (SCK=4, WS=5, SD=6)
+# 16 kHz Stereo I2S INMP441 Microphone (SCK=4, WS=5, SD=6)
 audio = machine.I2S(
     0,
     sck=machine.Pin(4),
@@ -69,109 +70,62 @@ audio = machine.I2S(
     ibuf=4096
 )
 
-# Splash screen
-oled.fill(0)
-oled.rect(0, 0, 128, 64, 1)
-oled.text('HACKTIVATE 2026', 4, 8, 1)
-oled.text('ACOUSTIC TinyML', 4, 24, 1)
-oled.text('INMP441 + OLED', 4, 40, 1)
-oled.show()
-time.sleep_ms(800)
+# 128 stereo frames = 1024 bytes (128 Left samples across 128 pixels)
+buf_in = bytearray(1024)
 
-# Precalculate 64-point Trigonometric LUT for Fast Integer DFT (16 Bands)
-N = 64
-NUM_BANDS = 16
-cos_lut = [int(math.cos(2 * math.pi * k / N) * 256) for k in range(N)]
-sin_lut = [int(math.sin(2 * math.pi * k / N) * 256) for k in range(N)]
+# Initial DC bias calibration
+calib_sum = 0
+for _ in range(20):
+    audio.readinto(buf_in)
+    words = struct.unpack('<256i', buf_in)
+    calib_sum += sum(words[i] >> 16 for i in range(0, 256, 2)) // 128
+dc = calib_sum // 20
 
-# Peak hold levels for visual falloff
-peak_bars = [0] * NUM_BANDS
-smooth_bars = [0] * NUM_BANDS
+print("WAVEFORM_RUNNING")
 
-# Audio buffer for 64 stereo frames (512 bytes)
-buf_in = bytearray(512)
-
-print("SPECTRUM_RUNNING")
+frame_count = 0
+t_fps = time.ticks_ms()
 
 while True:
-    # Read chunk from microphone
     audio.readinto(buf_in)
-    raw = struct.unpack('<128i', buf_in)
+    words = struct.unpack('<256i', buf_in)
     
-    # Extract clean Left channel (Mic 1) top 16 bits
-    samples = [raw[i] >> 16 for i in range(0, 128, 2)]
-    mean_val = sum(samples) // 64
-    ac = [s - mean_val for s in samples]
-
-    # Calculate overall RMS energy
-    p2p = max(ac) - min(ac)
-
-    # 16-Band Discrete Transform
-    for b in range(NUM_BANDS):
-        k = b + 1
-        re = 0
-        im = 0
-        for n in range(0, N, 2): # sub-sampled 2x for high FPS
-            v = ac[n]
-            idx = (n * k) % N
-            re += v * cos_lut[idx]
-            im += v * sin_lut[idx]
-        
-        re >>= 8
-        im >>= 8
-        mag = int(math.sqrt(re * re + im * im))
-        
-        # Scale to bar height (max height 46 pixels for responsive dynamics)
-        target_h = min(46, max(0, int(mag / 20)))
-        
-        # Smooth interpolation
-        smooth_bars[b] = (smooth_bars[b] * 2 + target_h) // 3
-        
-        # Peak falloff logic
-        if smooth_bars[b] >= peak_bars[b]:
-            peak_bars[b] = smooth_bars[b]
-        elif peak_bars[b] > 0:
-            peak_bars[b] -= 1
-
-    # Render frame buffer
+    # Extract clean Left channel (Mic 1) top 16-bit audio
+    left = [words[i] >> 16 for i in range(0, 256, 2)]
+    
+    # Peak-to-peak amplitude for telemetry
+    p2p = max(left) - min(left)
+    
+    # Clear screen to pitch black: ZERO words, ZERO text, ZERO borders
     oled.fill(0)
     
-    # Top status header
-    oled.text("FREQ SPECTRUM", 0, 0, 1)
+    # Continuous oscilloscope line trace across all 128 pixels (x: 0 to 127)
+    prev_x = 0
+    s0 = (left[0] - dc) * 6 // 256
+    prev_y = max(0, min(63, 32 - s0))
     
-    # Amplitude status flag
-    if p2p > 4000:
-        oled.text("LOUD!", 88, 0, 1)
-    elif p2p > 800:
-        oled.text("VOICE", 84, 0, 1)
-    else:
-        oled.text("NORM", 92, 0, 1)
-
-    oled.hline(0, 11, 128, 1)
-
-    # Draw 16 Spectrum Bars (each 6px wide + 2px spacing = 8px per band, 16 * 8 = 128px)
-    for b in range(NUM_BANDS):
-        x = b * 8
-        h = smooth_bars[b]
-        y = 63 - h
+    for x in range(1, 128):
+        s = (left[x] - dc) * 6 // 256
+        y = max(0, min(63, 32 - s))
+        oled.line(prev_x, prev_y, x, y, 1)
+        prev_x = x
+        prev_y = y
         
-        # Draw bar
-        if h > 0:
-            oled.fill_rect(x, y, 6, h, 1)
-        
-        # Draw peak hold dot
-        pk_y = 63 - peak_bars[b]
-        if pk_y < 63 and pk_y >= 12:
-            oled.hline(x, pk_y, 6, 1)
-
     oled.show()
+    
+    frame_count += 1
+    # Send telemetry back to PC terminal every 4 frames (~100ms)
+    if frame_count % 4 == 0:
+        print("T:" + str(p2p))
 '''
 
 def main():
-    print("=" * 65)
-    print("   📊 ESP32-S3 + INMP441 + 0.96\" OLED SPECTRUM LAUNCHER     ")
-    print("=" * 65)
-    print(f"Connecting to {PORT}...")
+    print("=" * 70)
+    print("   📈 ESP32-S3 LIVE OLED AUDIO OSCILLOSCOPE (PURE WAVEFORM)  ")
+    print("   OLED Screen: PURE WAVEFORM TRACE ONLY (No Text / No Borders)")
+    print("   PC Monitor: Real-Time Telemetry, Amplitude & VU Meter     ")
+    print("=" * 70)
+    print(f"Connecting to ESP32-S3 on {PORT}...")
 
     try:
         ser = serial.Serial(PORT, BAUD, timeout=1)
@@ -180,40 +134,68 @@ def main():
         print("Run: sudo chmod 666 /dev/ttyACM0")
         sys.exit(1)
 
-    # Interrupt current script and enter raw REPL
+    # Clean interrupt and enter raw REPL
     ser.write(b'\r\x03\r\x03\r\x01')
     time.sleep(0.15)
     ser.read_all()
 
-    print("Uploading and starting real-time spectrum engine...")
+    print("Uploading and launching oscilloscope engine on ESP32-S3...")
     ser.write(MICROPYTHON_CODE.encode('utf-8') + b'\x04')
 
     t0 = time.time()
     started = False
-    while time.time() - t0 < 4.0:
+    while time.time() - t0 < 5.0:
         line = ser.readline().decode('utf-8', errors='ignore').strip()
-        if "SPECTRUM_RUNNING" in line:
+        if "WAVEFORM_RUNNING" in line:
             started = True
             break
 
-    if started:
-        print("\n" + "✨" * 30)
-        print("  🟢 REAL-TIME SPECTRUM DISPLAY IS LIVE ON OLED SCREEN! 🟢")
-        print("  - Speak, whistle, tap the table, or clap near the mic.")
-        print("  - Watch the 16 frequency bands and peak dots dance live!")
-        print("✨" * 30)
-        print("\nPress Ctrl+C in this terminal to stop the spectrum.")
-    else:
-        print("[NOTE] Spectrum engine running. Monitoring stream...")
+    print("\n" + "✨" * 35)
+    print("  🟢 PURE LIVE WAVEFORM IS ACTIVE ON YOUR OLED DISPLAY! 🟢")
+    print("  (Look at your OLED screen — only the fluid audio wave is shown)")
+    print("✨" * 35 + "\n")
+    print("Live Monitor Telemetry (Press Ctrl+C to exit):\n")
+
+    peak_hold = 0
+    decay = 0
 
     try:
         while True:
-            time.sleep(0.5)
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
+            if line.startswith("T:"):
+                try:
+                    p2p = int(line.split(":")[1])
+                except Exception:
+                    continue
+
+                if p2p > peak_hold:
+                    peak_hold = p2p
+                    decay = 0
+                else:
+                    decay += 1
+                    if decay > 2:
+                        peak_hold = max(0, peak_hold - 200)
+
+                # Visual meter bar (25 chars)
+                bar_len = min(25, max(0, int(p2p / 200)))
+                bar = "█" * bar_len + "░" * (25 - bar_len)
+
+                if p2p > 4500:
+                    badge = "🔥🔥 CLAP / LOUD TRANSIENT"
+                elif p2p > 1000:
+                    badge = "🗣️  VOICE DETECTED"
+                elif p2p > 350:
+                    badge = "🎵 Soft Audio"
+                else:
+                    badge = "🤫 Quiet / Baseline"
+
+                print(f"\r  [{bar}] Peak: {p2p:5d} | Max: {peak_hold:5d} | {badge:<24}", end="", flush=True)
+
     except KeyboardInterrupt:
-        print("\nStopping Spectrum Engine on ESP32-S3...")
+        print("\n\nStopping oscilloscope engine...")
         ser.write(b'\r\x03\r\x02')
         ser.close()
-        print("Stopped cleanly.")
+        print("Oscilloscope stopped cleanly.")
 
 if __name__ == '__main__':
     main()
