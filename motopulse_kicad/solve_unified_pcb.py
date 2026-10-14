@@ -205,15 +205,17 @@ def build_pcb():
         p = footprint_instances[ref].FindPadByNumber(pin_str).GetPosition()
         return (nm2mm(p.x), nm2mm(p.y))
 
-    # Pad positions
-    u1_p1  = pad_pos("U1", "1")
-    u1_p4  = pad_pos("U1", "4")
-    u1_p5  = pad_pos("U1", "5")
-    u1_p6  = pad_pos("U1", "6")
-    u1_p23 = pad_pos("U1", "23")
-    u1_p24 = pad_pos("U1", "24")
-    u1_p27 = pad_pos("U1", "27")
-    u1_p28 = pad_pos("U1", "28")
+    # Pad positions for ESP32-S3-DevKitC-1-N16R8
+    u1_p1  = pad_pos("U1", "1")   # 3V3
+    u1_p4  = pad_pos("U1", "4")   # GPIO4 (I2S_SCK)
+    u1_p5  = pad_pos("U1", "5")   # GPIO5 (I2S_WS)
+    u1_p6  = pad_pos("U1", "6")   # GPIO6 (I2S_SD)
+    u1_p22 = pad_pos("U1", "22")  # GND
+    u1_p25 = pad_pos("U1", "25")  # GND
+    u1_p26 = pad_pos("U1", "26")  # GPIO1 (PIEZO_IN)
+    u1_p29 = pad_pos("U1", "29")  # GPIO41 (I2C_SCL)
+    u1_p30 = pad_pos("U1", "30")  # GPIO40 (I2C_SDA)
+    u1_p44 = pad_pos("U1", "44")  # GND
 
     j1_p1  = pad_pos("J1", "1")
     j1_p2  = pad_pos("J1", "2")
@@ -244,13 +246,10 @@ def build_pcb():
     # 5. SIGNAL ROUTING
     # =============================================================
 
-    # A. PIEZO_IN (U1.24 -> East to R1.1 & J4.1)
-    # U1.24 is at East header (X=173.93, Y=115.87)
-    # J4.1 is at (208.0, 122.0), R1.1 is at (196.0, 122.91)
-    # Direct orthogonal route on F.Cu:
+    # A. PIEZO_IN (U1.26 GPIO1 -> East to R1.1 & J4.1)
     add_polyline(board, [
-        u1_p24,
-        (origin_x + 90.0, u1_p24[1]),
+        u1_p26,
+        (origin_x + 90.0, u1_p26[1]),
         (origin_x + 90.0, r1_p1[1]),
         r1_p1,
         j4_p1
@@ -261,19 +260,18 @@ def build_pcb():
     add_segment(board, r1_p2, (r1_p2[0], r1_p2[1] - 2.0), net_gnd, pcbnew.F_Cu, 0.35)
 
     # B. I2C SIGNALS (U1 to J3 OLED)
-    # U1.27 (SCL) is at Y=123.49, J3.3 (SCL) is at Y=155.08
-    # U1.28 (SDA) is at Y=126.03, J3.4 (SDA) is at Y=157.62
+    # U1.29 (GPIO41 SCL) and U1.30 (GPIO40 SDA)
     # Routes run smoothly in parallel on B.Cu without any track crossing:
     add_polyline(board, [
-        u1_p27,
-        (origin_x + 88.0, u1_p27[1]),
+        u1_p29,
+        (origin_x + 88.0, u1_p29[1]),
         (origin_x + 88.0, j3_p3[1]),
         j3_p3
     ], net_scl, pcbnew.B_Cu, 0.35)
 
     add_polyline(board, [
-        u1_p28,
-        (origin_x + 85.0, u1_p28[1]),
+        u1_p30,
+        (origin_x + 85.0, u1_p30[1]),
         (origin_x + 85.0, j3_p4[1]),
         j3_p4
     ], net_sda, pcbnew.B_Cu, 0.35)

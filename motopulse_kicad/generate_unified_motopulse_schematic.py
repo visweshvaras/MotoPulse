@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-MotoPulse: Unified ESP32-S3 DevKit + Dual INMP441 + OLED + Piezo Schematic Generator
+MotoPulse: Unified ESP32-S3-DevKitC-1-N16R8 Schematic Generator
+Accurate Espressif ESP32-S3-DevKitC-1 (N16R8: 16MB Flash, 8MB Octal PSRAM) Pinout.
 Zero-Error ERC, 100% On-Grid (2.54mm / 1.27mm), Fully Connected.
-Only components used:
-  - U1: ESP32-S3-DevKitC-1 (2x22 pin headers, 22.86mm / 0.9" spacing)
+
+Components used:
+  - U1: ESP32-S3-DevKitC-1-N16R8 (2x22 pin headers, 22.86mm / 0.9" spacing)
   - J1: INMP441 MEMS Mic 1 (Left Channel)
   - J2: INMP441 MEMS Mic 2 (Right Channel, 40mm spacing)
   - J3: 0.96" SSD1306 I2C OLED Display
   - J4: Piezoelectric Vibration Sensor Connector
   - R1: 1.0MΩ Bleed / Damping Resistor
-(No capacitors, no extra components)
+(No capacitors)
 """
 
 import os
@@ -40,12 +42,25 @@ def extract_lib_symbol(lib_file, symbol_name):
         i += 1
     raise ValueError(f"Parenthesis matching failed for {symbol_name}")
 
-def generate_esp32s3_symbol():
-    """Generates the unified 44-pin ESP32-S3-DevKitC-1 schematic symbol."""
+def generate_esp32s3_n16r8_symbol():
+    """
+    Generates the official 44-pin ESP32-S3-DevKitC-1-N16R8 schematic symbol.
+    Left header (J1, Pins 1-22):
+      1: 3V3, 2: 3V3, 3: RST, 4: GPIO4, 5: GPIO5, 6: GPIO6, 7: GPIO7,
+      8: GPIO15, 9: GPIO16, 10: GPIO17, 11: GPIO18, 12: GPIO8, 13: GPIO3,
+      14: GPIO46, 15: GPIO9, 16: GPIO10, 17: GPIO11, 18: GPIO12, 19: GPIO13,
+      20: GPIO14, 21: GPIO21, 22: GND
+    Right header (J3, Pins 23-44):
+      23: 3V3, 24: 5V, 25: GND, 26: GPIO1, 27: GPIO2, 28: GPIO42,
+      29: GPIO41, 30: GPIO40, 31: GPIO39, 32: GPIO38,
+      33: GPIO37 (OPI PSRAM), 34: GPIO36 (OPI PSRAM), 35: GPIO35 (OPI PSRAM),
+      36: GPIO0, 37: GPIO45, 38: GPIO48, 39: GPIO47, 40: TX (GPIO43),
+      41: RX (GPIO44), 42: D- (GPIO19), 43: D+ (GPIO20), 44: GND
+    """
     left_pins = [
         ("1", "3V3", "power_in"),
         ("2", "3V3", "passive"),
-        ("3", "EN", "input"),
+        ("3", "RST", "input"),
         ("4", "GPIO4", "bidirectional"),   # I2S SCK
         ("5", "GPIO5", "bidirectional"),   # I2S WS
         ("6", "GPIO6", "bidirectional"),   # I2S SD
@@ -55,40 +70,40 @@ def generate_esp32s3_symbol():
         ("10", "GPIO17", "bidirectional"),
         ("11", "GPIO18", "bidirectional"),
         ("12", "GPIO8", "bidirectional"),
-        ("13", "GPIO19", "bidirectional"),
-        ("14", "GPIO20", "bidirectional"),
-        ("15", "GPIO3", "bidirectional"),
-        ("16", "GPIO46", "bidirectional"),
-        ("17", "GPIO9", "bidirectional"),
-        ("18", "GPIO10", "bidirectional"),
-        ("19", "GPIO11", "bidirectional"),
-        ("20", "GPIO12", "bidirectional"),
-        ("21", "GPIO13", "bidirectional"),
-        ("22", "GPIO14", "bidirectional")
+        ("13", "GPIO3", "bidirectional"),
+        ("14", "GPIO46", "input"),
+        ("15", "GPIO9", "bidirectional"),
+        ("16", "GPIO10", "bidirectional"),
+        ("17", "GPIO11", "bidirectional"),
+        ("18", "GPIO12", "bidirectional"),
+        ("19", "GPIO13", "bidirectional"),
+        ("20", "GPIO14", "bidirectional"),
+        ("21", "GPIO21", "bidirectional"),
+        ("22", "GND", "power_in")
     ]
     
     right_pins = [
-        ("23", "GND", "power_in"),
-        ("24", "GPIO1", "bidirectional"),  # Piezo ADC
-        ("25", "GPIO2", "bidirectional"),
-        ("26", "GPIO42", "bidirectional"),
-        ("27", "GPIO41", "bidirectional"), # I2C SCL
-        ("28", "GPIO40", "bidirectional"), # I2C SDA
-        ("29", "GPIO39", "bidirectional"),
-        ("30", "GPIO38", "bidirectional"),
-        ("31", "GPIO37", "bidirectional"),
-        ("32", "GPIO36", "bidirectional"),
-        ("33", "GPIO35", "bidirectional"),
-        ("34", "GPIO0", "bidirectional"),
-        ("35", "GPIO45", "bidirectional"),
-        ("36", "GPIO48", "bidirectional"),
-        ("37", "GPIO47", "bidirectional"),
-        ("38", "GPIO21", "bidirectional"),
-        ("39", "GPIO14", "bidirectional"),
-        ("40", "GPIO13", "bidirectional"),
-        ("41", "GND", "power_in"),
-        ("42", "GND", "power_in"),
-        ("43", "5V", "power_in"),
+        ("23", "3V3", "passive"),
+        ("24", "5V", "power_in"),
+        ("25", "GND", "power_in"),
+        ("26", "GPIO1", "bidirectional"),  # Piezo ADC
+        ("27", "GPIO2", "bidirectional"),
+        ("28", "GPIO42", "bidirectional"),
+        ("29", "GPIO41", "bidirectional"), # I2C SCL
+        ("30", "GPIO40", "bidirectional"), # I2C SDA
+        ("31", "GPIO39", "bidirectional"),
+        ("32", "GPIO38", "bidirectional"),
+        ("33", "GPIO37_OPI", "passive"),   # Internal Octal PSRAM on N16R8
+        ("34", "GPIO36_OPI", "passive"),   # Internal Octal PSRAM on N16R8
+        ("35", "GPIO35_OPI", "passive"),   # Internal Octal PSRAM on N16R8
+        ("36", "GPIO0", "bidirectional"),
+        ("37", "GPIO45", "bidirectional"),
+        ("38", "GPIO48", "bidirectional"),
+        ("39", "GPIO47", "bidirectional"),
+        ("40", "TX_GPIO43", "bidirectional"),
+        ("41", "RX_GPIO44", "bidirectional"),
+        ("42", "D-_GPIO19", "bidirectional"),
+        ("43", "D+_GPIO20", "bidirectional"),
         ("44", "GND", "power_in")
     ]
 
@@ -115,7 +130,7 @@ def generate_esp32s3_symbol():
 
     all_pins_str = "\n".join(pin_defs)
 
-    return f"""\t(symbol "motopulse:ESP32-S3-DevKitC-1"
+    return f"""\t(symbol "motopulse:ESP32-S3-DevKitC-1-N16R8"
 \t\t(pin_names (offset 1.016))
 \t\t(exclude_from_sim no)
 \t\t(in_bom yes)
@@ -123,7 +138,7 @@ def generate_esp32s3_symbol():
 \t\t(property "Reference" "U" (at 0 31.75 0)
 \t\t\t(effects (font (size 1.27 1.27)))
 \t\t)
-\t\t(property "Value" "ESP32-S3-DevKitC-1" (at 0 -30.48 0)
+\t\t(property "Value" "ESP32-S3-DevKitC-1-N16R8" (at 0 -30.48 0)
 \t\t\t(effects (font (size 1.27 1.27)))
 \t\t)
 \t\t(property "Footprint" "motopulse:ESP32-S3-DevKitC-1" (at 0 -33.02 0)
@@ -132,16 +147,16 @@ def generate_esp32s3_symbol():
 \t\t(property "Datasheet" "https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1.html" (at 0 -35.56 0)
 \t\t\t(effects (font (size 1.27 1.27)) (hide yes))
 \t\t)
-\t\t(property "Description" "ESP32-S3-DevKitC-1 Development Board, 44 pins (2x22 headers)" (at 0 -38.10 0)
+\t\t(property "Description" "ESP32-S3-DevKitC-1-N16R8 (16MB Flash, 8MB Octal PSRAM), 44 pins (2x22 headers)" (at 0 -38.10 0)
 \t\t\t(effects (font (size 1.27 1.27)) (hide yes))
 \t\t)
-\t\t(symbol "ESP32-S3-DevKitC-1_0_1"
+\t\t(symbol "ESP32-S3-DevKitC-1-N16R8_0_1"
 \t\t\t(rectangle (start -15.24 29.21) (end 15.24 -27.94)
 \t\t\t\t(stroke (width 0.254) (type solid))
 \t\t\t\t(fill (type background))
 \t\t\t)
 \t\t)
-\t\t(symbol "ESP32-S3-DevKitC-1_1_1"
+\t\t(symbol "ESP32-S3-DevKitC-1-N16R8_1_1"
 {all_pins_str}
 \t\t)
 \t)"""
@@ -155,7 +170,7 @@ def get_lib_symbols():
     syms.append(extract_lib_symbol("/usr/share/kicad/symbols/Connector_Generic.kicad_sym", "Conn_01x02").replace('(symbol "Conn_01x02"', '(symbol "Connector_Generic:Conn_01x02"'))
     syms.append(extract_lib_symbol("/usr/share/kicad/symbols/Connector_Generic.kicad_sym", "Conn_01x04").replace('(symbol "Conn_01x04"', '(symbol "Connector_Generic:Conn_01x04"'))
     syms.append(extract_lib_symbol("/usr/share/kicad/symbols/Connector_Generic.kicad_sym", "Conn_01x06").replace('(symbol "Conn_01x06"', '(symbol "Connector_Generic:Conn_01x06"'))
-    syms.append(generate_esp32s3_symbol())
+    syms.append(generate_esp32s3_n16r8_symbol())
     return "\n".join(syms)
 
 def format_symbol_instance(lib_id, ref, val, footprint, x, y, angle=0, unit=1, dnp=False, 
@@ -297,12 +312,12 @@ def build_schematic():
     junctions_text = []
 
     # =============================================================
-    # 1. U1: UNIFIED ESP32-S3-DevKitC-1 (Center of Schematic)
+    # 1. U1: ESP32-S3-DevKitC-1-N16R8 (Center of Schematic)
     # =============================================================
     u1_x, u1_y = 139.70, 114.30
     u1_pin_map = [str(i) for i in range(1, 45)]
     symbols_text.append(format_symbol_instance(
-        "motopulse:ESP32-S3-DevKitC-1", "U1", "ESP32-S3-DevKitC-1",
+        "motopulse:ESP32-S3-DevKitC-1-N16R8", "U1", "ESP32-S3-DevKitC-1-N16R8",
         "motopulse:ESP32-S3-DevKitC-1",
         u1_x, u1_y, angle=0,
         ref_pos=(u1_x, u1_y - 31.75), val_pos=(u1_x, u1_y + 31.75),
@@ -311,16 +326,14 @@ def build_schematic():
     ))
 
     def u1_left_pin_pos(pin_num):
-        # Y = u1_y - (26.67 - (pin_num - 1) * 2.54)
         sym_y = 26.67 - (pin_num - 1) * 2.54
         return (u1_x - 17.78, u1_y - sym_y)
 
     def u1_right_pin_pos(pin_num):
-        # pin 23 is idx 0
         sym_y = 26.67 - (pin_num - 23) * 2.54
         return (u1_x + 17.78, u1_y - sym_y)
 
-    # --- U1 Left Pins ---
+    # --- U1 Left Pins (J1 Header: 1 to 22) ---
     # Pin 1: 3V3 -> Power Rail (+3.3V)
     p1_x, p1_y = u1_left_pin_pos(1)
     wires_text.append(format_wire(p1_x, p1_y, p1_x - 7.62, p1_y))
@@ -328,11 +341,11 @@ def build_schematic():
     symbols_text.append(format_power_symbol("power:PWR_FLAG", "PWR_FLAG", "#FLG01", p1_x - 7.62, p1_y, sheet_uuid=sheet_uuid))
     junctions_text.append(format_junction(p1_x - 7.62, p1_y))
 
-    # Pin 2: 3V3 (Secondary header pin)
+    # Pin 2: 3V3 (Secondary 3.3V header pin)
     p2_x, p2_y = u1_left_pin_pos(2)
     no_connects_text.append(format_no_connect(p2_x, p2_y))
 
-    # Pin 3: EN
+    # Pin 3: RST (CHIP_PU)
     p3_x, p3_y = u1_left_pin_pos(3)
     no_connects_text.append(format_no_connect(p3_x, p3_y))
 
@@ -351,62 +364,61 @@ def build_schematic():
     wires_text.append(format_wire(p6_x, p6_y, p6_x - 10.16, p6_y))
     labels_text.append(format_label("I2S_SD", p6_x - 10.16, p6_y, angle=180))
 
-    # Pins 7 to 22: Unused Left GPIOs -> No Connects
-    for pin_idx in range(7, 23):
+    # Pins 7 to 21: Unused Left GPIOs -> No Connects
+    for pin_idx in range(7, 22):
         px, py = u1_left_pin_pos(pin_idx)
         no_connects_text.append(format_no_connect(px, py))
 
-    # --- U1 Right Pins ---
-    # Pin 23: GND -> Power Rail (GND)
+    # Pin 22: GND -> Power Rail (GND)
+    p22_x, p22_y = u1_left_pin_pos(22)
+    wires_text.append(format_wire(p22_x, p22_y, p22_x - 7.62, p22_y))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR02", p22_x - 7.62, p22_y, sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:PWR_FLAG", "PWR_FLAG", "#FLG02", p22_x - 7.62, p22_y, sheet_uuid=sheet_uuid))
+    junctions_text.append(format_junction(p22_x - 7.62, p22_y))
+
+    # --- U1 Right Pins (J3 Header: 23 to 44) ---
+    # Pin 23: 3V3 (Secondary 3.3V rail)
     p23_x, p23_y = u1_right_pin_pos(23)
-    wires_text.append(format_wire(p23_x, p23_y, p23_x + 7.62, p23_y))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR02", p23_x + 7.62, p23_y, sheet_uuid=sheet_uuid))
-    symbols_text.append(format_power_symbol("power:PWR_FLAG", "PWR_FLAG", "#FLG02", p23_x + 7.62, p23_y, sheet_uuid=sheet_uuid))
-    junctions_text.append(format_junction(p23_x + 7.62, p23_y))
+    no_connects_text.append(format_no_connect(p23_x, p23_y))
 
-    # Pin 24: GPIO1 -> PIEZO_IN
+    # Pin 24: 5V (USB VBUS)
     p24_x, p24_y = u1_right_pin_pos(24)
-    wires_text.append(format_wire(p24_x, p24_y, p24_x + 10.16, p24_y))
-    labels_text.append(format_label("PIEZO_IN", p24_x + 10.16, p24_y, angle=0))
+    no_connects_text.append(format_no_connect(p24_x, p24_y))
 
-    # Pins 25, 26: GPIO2, GPIO42 -> No Connect
-    for pin_idx in [25, 26]:
+    # Pin 25: GND
+    p25_x, p25_y = u1_right_pin_pos(25)
+    wires_text.append(format_wire(p25_x, p25_y, p25_x + 7.62, p25_y))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR03", p25_x + 7.62, p25_y, sheet_uuid=sheet_uuid))
+
+    # Pin 26: GPIO1 -> PIEZO_IN (ADC1_CH0)
+    p26_x, p26_y = u1_right_pin_pos(26)
+    wires_text.append(format_wire(p26_x, p26_y, p26_x + 10.16, p26_y))
+    labels_text.append(format_label("PIEZO_IN", p26_x + 10.16, p26_y, angle=0))
+
+    # Pins 27, 28: GPIO2, GPIO42 -> No Connect
+    for pin_idx in [27, 28]:
         px, py = u1_right_pin_pos(pin_idx)
         no_connects_text.append(format_no_connect(px, py))
 
-    # Pin 27: GPIO41 -> I2C_SCL
-    p27_x, p27_y = u1_right_pin_pos(27)
-    wires_text.append(format_wire(p27_x, p27_y, p27_x + 10.16, p27_y))
-    labels_text.append(format_label("I2C_SCL", p27_x + 10.16, p27_y, angle=0))
+    # Pin 29: GPIO41 -> I2C_SCL
+    p29_x, p29_y = u1_right_pin_pos(29)
+    wires_text.append(format_wire(p29_x, p29_y, p29_x + 10.16, p29_y))
+    labels_text.append(format_label("I2C_SCL", p29_x + 10.16, p29_y, angle=0))
 
-    # Pin 28: GPIO40 -> I2C_SDA
-    p28_x, p28_y = u1_right_pin_pos(28)
-    wires_text.append(format_wire(p28_x, p28_y, p28_x + 10.16, p28_y))
-    labels_text.append(format_label("I2C_SDA", p28_x + 10.16, p28_y, angle=0))
+    # Pin 30: GPIO40 -> I2C_SDA
+    p30_x, p30_y = u1_right_pin_pos(30)
+    wires_text.append(format_wire(p30_x, p30_y, p30_x + 10.16, p30_y))
+    labels_text.append(format_label("I2C_SDA", p30_x + 10.16, p30_y, angle=0))
 
-    # Pins 29 to 40: Unused Right GPIOs -> No Connects
-    for pin_idx in range(29, 41):
+    # Pins 31 to 43: Unused Right GPIOs / PSRAM / USB -> No Connects
+    for pin_idx in range(31, 44):
         px, py = u1_right_pin_pos(pin_idx)
         no_connects_text.append(format_no_connect(px, py))
-
-    # Pin 41: GND
-    p41_x, p41_y = u1_right_pin_pos(41)
-    wires_text.append(format_wire(p41_x, p41_y, p41_x + 7.62, p41_y))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR03", p41_x + 7.62, p41_y, sheet_uuid=sheet_uuid))
-
-    # Pin 42: GND
-    p42_x, p42_y = u1_right_pin_pos(42)
-    wires_text.append(format_wire(p42_x, p42_y, p42_x + 7.62, p42_y))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR04", p42_x + 7.62, p42_y, sheet_uuid=sheet_uuid))
-
-    # Pin 43: 5V
-    p43_x, p43_y = u1_right_pin_pos(43)
-    no_connects_text.append(format_no_connect(p43_x, p43_y))
 
     # Pin 44: GND
     p44_x, p44_y = u1_right_pin_pos(44)
     wires_text.append(format_wire(p44_x, p44_y, p44_x + 7.62, p44_y))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR05", p44_x + 7.62, p44_y, sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR04", p44_x + 7.62, p44_y, sheet_uuid=sheet_uuid))
 
     # =============================================================
     # 2. PERIPHERALS
@@ -425,11 +437,11 @@ def build_schematic():
     # Pin 1: VDD (+3.3V)
     p = (j1_x - 5.08, j1_py(1))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR06", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR05", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
     # Pin 2: GND
     p = (j1_x - 5.08, j1_py(2))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR07", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR06", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
     # Pin 3: SD (I2S_SD)
     p = (j1_x - 5.08, j1_py(3))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
@@ -445,7 +457,7 @@ def build_schematic():
     # Pin 6: L/R (GND -> Left Channel)
     p = (j1_x - 5.08, j1_py(6))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR08", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR07", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
 
     # --- J2: Right INMP441 MEMS Mic (Conn_01x06) ---
     j2_x, j2_y = 63.50, 152.40
@@ -460,11 +472,11 @@ def build_schematic():
     # Pin 1: VDD (+3.3V)
     p = (j2_x - 5.08, j2_py(1))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR09", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR08", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
     # Pin 2: GND
     p = (j2_x - 5.08, j2_py(2))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR10", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR09", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
     # Pin 3: SD (I2S_SD)
     p = (j2_x - 5.08, j2_py(3))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
@@ -480,7 +492,7 @@ def build_schematic():
     # Pin 6: L/R (+3.3V -> Right Channel)
     p = (j2_x - 5.08, j2_py(6))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR11", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR10", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
 
     # --- J3: 0.96" SSD1306 OLED Display (Conn_01x04) ---
     j3_x, j3_y = 215.90, 76.20
@@ -495,11 +507,11 @@ def build_schematic():
     # Pin 1: GND
     p = (j3_x - 5.08, j3_py(1))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR12", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR11", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
     # Pin 2: VCC (+3.3V)
     p = (j3_x - 5.08, j3_py(2))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR13", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:+3.3V", "+3.3V", "#PWR12", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
     # Pin 3: SCL (I2C_SCL)
     p = (j3_x - 5.08, j3_py(3))
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
@@ -525,7 +537,7 @@ def build_schematic():
     # Pin 2: GND
     p = (j4_x - 5.08, j4_y + 2.54)
     wires_text.append(format_wire(p[0], p[1], p[0] - 10.16, p[1]))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR14", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR13", p[0] - 10.16, p[1], sheet_uuid=sheet_uuid))
 
     # --- R1: 1.0MΩ Bleed / Damping Resistor for Piezo ---
     r1_x, r1_y = 241.30, 152.40
@@ -537,7 +549,7 @@ def build_schematic():
         sheet_uuid=sheet_uuid
     ))
     labels_text.append(format_label("PIEZO_IN", r1_x, r1_y - 3.81, angle=90))
-    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR15", r1_x, r1_y + 3.81, sheet_uuid=sheet_uuid))
+    symbols_text.append(format_power_symbol("power:GND", "GND", "#PWR14", r1_x, r1_y + 3.81, sheet_uuid=sheet_uuid))
 
     # =============================================================
     # 3. ASSEMBLE COMPLETE SCHEMATIC
@@ -549,12 +561,12 @@ def build_schematic():
 \t(uuid "{sheet_uuid}")
 \t(paper "A3")
 \t(title_block
-\t\t(title "MotoPulse Unified ESP32-S3 Acoustic & Vibration Motherboard")
+\t\t(title "MotoPulse ESP32-S3-DevKitC-1-N16R8 Acoustic & Vibration Carrier")
 \t\t(date "2026-10-14")
-\t\t(rev "v2.0-clean")
+\t\t(rev "v2.1-N16R8")
 \t\t(company "MotoPulse Team")
-\t\t(comment 1 "Dual INMP441 MEMS Mics (40.0mm Baseline) + 0.96 OLED + Piezo + 1M Resistor")
-\t\t(comment 2 "Pure Direct-Connect Architecture - No Unnecessary Capacitors")
+\t\t(comment 1 "ESP32-S3-DevKitC-1-N16R8 (16MB Flash, 8MB Octal PSRAM) Pinout")
+\t\t(comment 2 "Dual INMP441 (40.0mm Baseline) + 0.96 OLED + Piezo + 1M Damping (Zero Caps)")
 \t)
 \t(lib_symbols
 {get_lib_symbols()}
@@ -576,14 +588,14 @@ def build_schematic():
         f.write(sch_content)
     print(f"✔ Generated schematic: {sch_file}")
 
-    # Generate standalone library if needed
+    # Generate standalone library symbol
     sym_file = os.path.join(BASE_DIR, f"{PROJECT_NAME}.kicad_sym")
     with open(sym_file, "w", encoding="utf-8") as f:
         f.write(f"""(kicad_symbol_lib
 \t(version 20241225)
 \t(generator "motopulse_sym_generator")
 \t(generator_version "10.0")
-{generate_esp32s3_symbol()}
+{generate_esp32s3_n16r8_symbol()}
 )""")
     print(f"✔ Generated symbol library: {sym_file}")
 
@@ -593,9 +605,6 @@ def build_schematic():
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     print("ERC Output:")
     print(res.stdout)
-    if os.path.exists(erc_rpt):
-        with open(erc_rpt, "r") as f:
-            print(f.read())
 
     # Export Netlist
     net_file = os.path.join(BASE_DIR, f"{PROJECT_NAME}.net")
@@ -603,7 +612,7 @@ def build_schematic():
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     print(f"✔ Netlist exported: {net_file} (code {res.returncode})")
 
-    # Export PDF & SVG
+    # Export PDF & PNG
     pdf_file = os.path.join(BASE_DIR, f"{PROJECT_NAME}_schematic.pdf")
     cmd = ["kicad-cli", "sch", "export", "pdf", sch_file, "-o", pdf_file]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
