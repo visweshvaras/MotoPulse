@@ -4,3 +4,10 @@ bearing_swift_diesel_002.wav,bearing_wear,Maruti Swift 1.3 DDiS,Diesel,850,20,Al
 idle_hyundai_i20_003.wav,normal_idle,Hyundai i20 1.2 Kappa,Petrol,780,50,Closed Hood Center,Ishan,Healthy engine baseline idle
 valve_ticking_wagonr_004.wav,valve_ticking,Maruti WagonR 1.0 K10B,Petrol,900,25,Cylinder Head Valve Cover,Visweshwara,Tappet clearance noise
 belt_squeal_innova_005.wav,belt_slippage,Toyota Innova 2.5 D-4D,Diesel,1100,35,Serpentine Drive Belt,Ishan,Belt slip during AC compressor engagement
+car-ignition-1.mp3,engine_startup,Passenger Car,Petrol,,50,Engine Bay,Ishan,Car ignition start sequence (29s)
+freesound_community-car-not-starting-40006.mp3,cranking_failure,Passenger Car,Petrol,,40,Engine Bay,Ishan,Car not starting / failed cranking attempt (9s)
+freesound_community-car-not-starting-74857.mp3,cranking_failure,Passenger Car,Petrol,,40,Engine Bay,Ishan,Car not starting / struggling starter motor (20s)
+magiaz-car-brake-325519.mp3,brake_squeal,Passenger Car,Petrol,,30,Wheel Well / Brake Assembly,Ishan,High pitch car brake squeak friction wear (5s)
+soumages-car-engine-335601.mp3,normal_idle,Passenger Car,Petrol,,50,Engine Bay Front,Ishan,Steady car engine sound and idle rev (10s)
+VEHCar_Car difficult start (ID 0872)_BigSoundBank.com.wav,difficult_start,Passenger Car,Petrol,,50,Engine Bay,Ishan,Difficult delayed vehicle start and extended cranking (45s)
+VEHCar_Damaged muffler 3 parked car (ID 1571)_BigSoundBank.com.wav,exhaust_leak,Passenger Car,Petrol,,30,Exhaust Tip / Muffler,Ishan,Damaged muffler exhaust sputtering leak on parked car (16s)
