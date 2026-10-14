@@ -40,3 +40,8 @@ venv.bak/
 
 # Local bin firmware (users can flash standard micropython)
 # Keep scripts clean
+
+*.lck
+.history/
+__pycache__/
+

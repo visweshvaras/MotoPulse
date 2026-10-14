@@ -1,0 +1,112 @@
+{
+  "total_audio_files": 61,
+  "total_windows": 1582,
+  "sample_rate_hz": 16000,
+  "window_duration_sec": 1.0,
+  "overlap_percentage": 50.0,
+  "feature_shapes": {
+    "X_features": [
+      1582,
+      49,
+      32,
+      1
+    ],
+    "y_labels": [
+      1582
+    ],
+    "X_vibration": [
+      1582,
+      49,
+      2
+    ],
+    "vibration_summary": [
+      1582,
+      2
+    ]
+  },
+  "classes": [
+    "alert_chime",
+    "alternator_whine",
+    "bearing_wear",
+    "belt_slippage",
+    "brake_grinding",
+    "brake_squeal",
+    "cabin_blower_rattle",
+    "coolant_leak_boiling",
+    "cranking_failure",
+    "cv_joint_clicking",
+    "difficult_start",
+    "electrical_relay_chatter",
+    "engine_knocking",
+    "engine_startup",
+    "exhaust_leak",
+    "flywheel_chatter",
+    "fuel_pump_buzz",
+    "heat_shield_rattle",
+    "injector_ticking",
+    "intake_vacuum_leak",
+    "misfire",
+    "normal_idle",
+    "power_steering_whine",
+    "starter_clicking",
+    "suspension_clunking",
+    "timing_chain_rattle",
+    "transmission_whine",
+    "turbo_flutter",
+    "tyre_wear_roar",
+    "valve_ticking"
+  ],
+  "num_classes": 30,
+  "class_distribution_windows": {
+    "alert_chime": 19,
+    "alternator_whine": 29,
+    "bearing_wear": 192,
+    "belt_slippage": 77,
+    "brake_grinding": 19,
+    "brake_squeal": 9,
+    "cabin_blower_rattle": 19,
+    "coolant_leak_boiling": 19,
+    "cranking_failure": 58,
+    "cv_joint_clicking": 19,
+    "difficult_start": 90,
+    "electrical_relay_chatter": 19,
+    "engine_knocking": 135,
+    "engine_startup": 58,
+    "exhaust_leak": 137,
+    "flywheel_chatter": 29,
+    "fuel_pump_buzz": 19,
+    "heat_shield_rattle": 19,
+    "injector_ticking": 48,
+    "intake_vacuum_leak": 29,
+    "misfire": 48,
+    "normal_idle": 19,
+    "power_steering_whine": 48,
+    "starter_clicking": 48,
+    "suspension_clunking": 48,
+    "timing_chain_rattle": 58,
+    "transmission_whine": 19,
+    "turbo_flutter": 116,
+    "tyre_wear_roar": 19,
+    "valve_ticking": 116
+  },
+  "core8": {
+    "classes": [
+      "normal_idle",
+      "engine_knocking",
+      "bearing_wear",
+      "valve_ticking",
+      "belt_slippage",
+      "exhaust_leak",
+      "misfire",
+      "turbo_flutter"
+    ],
+    "num_classes": 8,
+    "total_windows": 840,
+    "feature_shape": [
+      840,
+      49,
+      32,
+      1
+    ]
+  }
+}

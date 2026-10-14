@@ -25,9 +25,9 @@ ticking.mp3,valve_ticking,Passenger Car,Petrol,,25,Cylinder Head / Valve Cover,I
 03_power_steering_whine.wav,power_steering_whine,Passenger Car,Petrol,1000,30,Power Steering Pump,Ishan,Hydraulic power steering pump cavitation whine (10s)
 04_alternator_bearing_whirring.wav,bearing_wear,Passenger Car,Petrol,1200,20,Alternator Rotor Bearing,Ishan,Alternator bearing high frequency whirring / grinding (10s)
 05_water_pump_bearing_whining.wav,bearing_wear,Passenger Car,Petrol,1000,20,Water Pump Pulley,Ishan,Water pump bearing whine and impeller friction (10s)
-06_clutch_release_bearing_whirr.wav,clutch_bearing_wear,Passenger Car,Petrol,900,25,Bellhousing / Clutch Release Bearing,Ishan,Clutch throwout bearing whirring under pedal engagement (10s)
+06_clutch_release_bearing_whirr.wav,bearing_wear,Passenger Car,Petrol,900,25,Bellhousing / Clutch Release Bearing,Ishan,Clutch throwout bearing whirring under pedal engagement (10s)
 07_transmission_gear_whine.wav,transmission_whine,Passenger Car,Petrol,2000,30,Transmission Gearbox,Ishan,Gearbox transmission gear tooth mesh whine under load (10s)
-08_engine_misfire_sputtering.wav,engine_misfire,Passenger Car,Petrol,800,40,Engine Bay / Exhaust Tailpipe,Ishan,Uneven cylinder combustion sputter / engine misfire (10s)
+08_engine_misfire_sputtering.wav,misfire,Passenger Car,Petrol,800,40,Engine Bay / Exhaust Tailpipe,Ishan,Uneven cylinder combustion sputter / engine misfire (10s)
 09_injector_ticking.wav,injector_ticking,Passenger Car,Petrol,850,20,Fuel Rail / Injectors,Ishan,High pressure fuel injector solenoid rhythmic pulse click (10s)
 10_ac_blower_fan_rattle.wav,cabin_blower_rattle,Passenger Car,Petrol,,20,HVAC Blower Motor / Cabin Dashboard,Ishan,AC blower motor fan blade debris rattle / bearing play (10s)
 11_electrical_relay_clicking.wav,electrical_relay_chatter,Passenger Car,Petrol,,20,Fuse / Relay Box Underhood,Ishan,Rapid electrical relay chatter from voltage drop (10s)
@@ -35,3 +35,33 @@ ticking.mp3,valve_ticking,Passenger Car,Petrol,,25,Cylinder Head / Valve Cover,I
 13_exhaust_heat_shield_rattle.wav,heat_shield_rattle,Passenger Car,Petrol,1200,30,Undercarriage Exhaust Heat Shield,Ishan,Loose rusted exhaust catalytic converter heat shield rattle (10s)
 14_fuel_pump_buzz_whine.wav,fuel_pump_buzz,Passenger Car,Petrol,,20,Rear Fuel Tank Underbody,Ishan,Failing electric in-tank fuel pump high-pitched hum buzz (10s)
 15_dashboard_warning_chime.wav,alert_chime,Passenger Car,Petrol,,30,Instrument Cluster Interior,Ishan,Electronic dashboard audio alert warning chime (10s)
+Fault_01_ConnectingRod_Knock_HeavyLoad_Toyota.wav,engine_knocking,Toyota Corolla 1.8 Dual VVT-i,Petrol,1800,30,Engine Block / Lower Crankcase,Ishan,Connecting rod bearing knock under heavy acceleration load
+Fault_02_ExhaustManifold_Leak_PressureChuff_Citroen.wav,exhaust_leak,Citroen C3 1.6 HDi,Diesel,950,25,Exhaust Manifold / Header Gasket,Ishan,Exhaust manifold gasket high-pressure chuffing leak
+Fault_03_PistonSlap_ColdStart_MetallicClatter_Suzuki.wav,engine_knocking,Suzuki Swift 1.2 DualJet,Petrol,1200,25,Cylinder Bore / Engine Block,Ishan,Piston slap cold start metallic clearance clatter
+Fault_04_HydraulicLifter_Tick_HotIdle_Renault.wav,valve_ticking,Renault Clio 1.5 dCi,Diesel,800,20,Cylinder Head / Valvetrain,Ishan,Hydraulic lifter bleed-down tick at hot idle
+Fault_05_CylinderMisfire_LopingIdle_Fiat.wav,misfire,Fiat Punto 1.4 Fire,Petrol,750,35,Engine Bay / Exhaust Tailpipe,Ishan,Cylinder combustion misfire causing loping irregular idle
+Fault_06_SerpentineBelt_Slip_ColdMorningSqueal_Peugeot.wav,belt_slippage,Peugeot 208 1.6 BlueHDi,Diesel,1100,30,Serpentine Drive Belt / Alternator Pulley,Ishan,Serpentine accessory belt slip high-pitched squeal
+Fault_07_Alternator_BearingWear_Grinding_Ford.wav,bearing_wear,Ford Focus 1.0 EcoBoost,Petrol,1200,20,Alternator Rotor Bearing,Ishan,Alternator bearing raceway spalling and harsh grinding
+Fault_08_WaterPump_BearingGrowl_Cavitation_Opel.wav,bearing_wear,Opel Corsa 1.4 Turbo,Petrol,1000,25,Water Pump Pulley / Bearing,Ishan,Water pump bearing growl and impeller cavitation noise
+Fault_09_TimingChain_Slack_CoverRattle_BMW.wav,timing_chain_rattle,BMW 320i N20 2.0L,Petrol,950,25,Timing Chain Front Cover,Ishan,Loose timing chain slack rattling against plastic guides
+Fault_10_TimingChain_TensionerFailure_FastChatter_Ford.wav,timing_chain_rattle,Ford Mondeo 2.0 Duratec,Petrol,1050,25,Timing Chain Housing,Ishan,Hydraulic timing chain tensioner collapse fast chatter
+Fault_11_Turbocharger_SirenWhine_SpoolingCruise_BMW.wav,turbo_flutter,BMW 520d F10 2.0d,Diesel,1800,30,Turbocharger Compressor Housing,Ishan,Turbocharger turbine shaft imbalance siren whine spooling
+Fault_12_TurboCompressor_SurgeFlutter_Decel_AlfaRomeo.wav,turbo_flutter,Alfa Romeo Giulietta 1.75 TBi,Petrol,2200,30,Turbo Diverter Valve / Intake Duct,Ishan,Turbo compressor surge pressure flutter during throttle release
+Fault_13_TurboBoost_IntercoolerLeak_Roar_Mondeo.wav,turbo_flutter,Ford Mondeo 2.0 TDCi,Diesel,2000,35,Intercooler Boost Hose Connection,Ishan,Turbo boost pipe split high pressure airflow rush and roar
+Fault_14_SparkKnock_Detonation_HighLoadUphill_Toyota.wav,engine_knocking,Toyota Yaris 1.33 Dual VVT-i,Petrol,2200,30,Engine Block / Cylinder Head,Ishan,High-load pre-ignition detonation spark knock
+Fault_15_Alternator_DiodeRipple_ElectricalWhine_Skoda.wav,alternator_whine,Skoda Octavia 1.6 MPI,Petrol,1400,20,Alternator Rectifier Diode Pack,Ishan,Alternator open diode electrical ripple whine
+Fault_16_IdlerPulley_BearingSpall_Chirp_Opel.wav,bearing_wear,Opel Astra 1.6 CDTI,Diesel,1100,20,Serpentine Idler Pulley Bearing,Ishan,Idler pulley bearing raceway spalling and chirping
+Fault_17_IntakeManifold_VacuumLeak_HighWhistle_Hyundai.wav,intake_vacuum_leak,Hyundai i30 1.6 CRDi,Diesel,800,25,Intake Manifold Plenum Gasket,Ishan,Unmetered intake air vacuum leak high-pitched whistle
+Fault_18_ACCompressorClutch_SlipScreech_Engagement_Chevrolet.wav,belt_slippage,Chevrolet Cruze 2.0 VCDi,Diesel,1000,30,AC Compressor Clutch Assembly,Ishan,AC compressor electromagnetic clutch plate slip screech
+Fault_19_PowerSteering_CavitationGroan_SteeringLock_Citroen.wav,power_steering_whine,Citroen C4 2.0 HDi,Diesel,1000,30,Hydraulic Power Steering Pump,Ishan,Power steering pump fluid cavitation groan at steering lock
+Fault_20_StarterMotor_BendixGrind_FlywheelClash_Opel.wav,starter_clicking,Opel Insignia 2.0 CDTI,Diesel,300,30,Starter Motor / Flywheel Ring Gear,Ishan,Starter motor Bendix gear clash against flywheel ring gear
+Fault_21_CatalyticConverter_HoneycombRattle_Exhaust_Seat.wav,exhaust_leak,Seat Leon 1.4 TSI,Petrol,1200,30,Underbody Catalytic Converter Cannister,Ishan,Broken ceramic catalytic converter substrate loose exhaust rattle
+Fault_22_BentValve_SeatingGasBlowby_Rattle_Fiat.wav,valve_ticking,Fiat 500 1.2 Lounge,Petrol,850,25,Cylinder Head Valve Guide,Ishan,Slightly bent intake valve seat gas blow-by rattle
+Fault_23_ExhaustValve_ExcessClearance_TappetClick_Renault.wav,valve_ticking,Renault Megane 1.6 16V,Petrol,900,20,Valvetrain Exhaust Rocker Arm,Ishan,Excessive exhaust valve lash clearance mechanical tappet click
+Fault_24_FuelInjector_SolenoidClick_HighPressure_Daewoo.wav,injector_ticking,Daewoo Matiz 0.8 SOHC,Petrol,850,20,Direct Injection Fuel Rail,Ishan,High-pressure solenoid fuel injector sharp actuation click
+Fault_25_ToyotaInnova_2GD_CrankshaftBearingKnock_Idle.wav,engine_knocking,Toyota Innova Crysta 2.4 2GD-FTV,Diesel,800,30,Lower Crankcase / Main Journal,Ishan,Toyota 2GD diesel crankshaft main bearing clearance knock
+Fault_26_DualMass_FlywheelChatter_LowRPMShudder_VW.wav,flywheel_chatter,Volkswagen Passat 2.0 TDI,Diesel,850,30,Transmission Bellhousing / DMF,Ishan,Dual mass flywheel damping spring degradation chatter and shudder
+Fault_27_EngineMount_LooseBushing_ChassisVibrationBuzz_Ford.wav,suspension_clunking,Ford Fiesta 1.4 TDCi,Diesel,1100,30,Front Right Engine Mount Bracket,Ishan,Collapsed hydraulic engine mount low-frequency chassis vibration buzz
+Fault_28_BlownHeadGasket_CylinderPressureLeak_Chuff_Hyundai.wav,exhaust_leak,Hyundai Elantra 1.8 Nu,Petrol,900,25,Cylinder Head Gasket Seam,Ishan,Blown cylinder head gasket inter-cylinder pressure leak chuffing
+Fault_29_Supercharger_CouplerClatter_RoughIdle_Chevrolet.wav,turbo_flutter,Chevrolet Camaro 6.2 ZL1,Petrol,750,25,Roots Supercharger Snout / Isolator,Ishan,Worn supercharger torsion isolator coupler mechanical clatter
+Fault_30_Transmission_InputShaftBearing_Growl_Neutral_Citroen.wav,bearing_wear,Citroen Berlingo 1.6 HDi,Diesel,850,30,Manual Transmission Bellhousing,Ishan,Manual gearbox input shaft bearing wear growl in neutral

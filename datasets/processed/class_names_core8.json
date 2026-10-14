@@ -1,0 +1,10 @@
+{
+  "0": "normal_idle",
+  "1": "engine_knocking",
+  "2": "bearing_wear",
+  "3": "valve_ticking",
+  "4": "belt_slippage",
+  "5": "exhaust_leak",
+  "6": "misfire",
+  "7": "turbo_flutter"
+}

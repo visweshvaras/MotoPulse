@@ -97,3 +97,34 @@ It will validate the sample rate (16 kHz), copy the file into `datasets/raw/`, a
    git commit -m "feat(datasets): add <class> recording for <vehicle>"
    git push origin main
    ```
+
+---
+
+## 🧠 TinyML Preprocessing & Feature Extraction
+
+MotoPulse includes an automated audio standardization and TinyML feature extraction pipeline:
+```bash
+python3 datasets/preprocess_to_tinyml.py
+```
+
+### Pipeline Steps:
+1. **Audio Standardization:** Converts all recordings to **16,000 Hz, 16-bit Mono PCM WAV** via FFmpeg.
+2. **Temporal Windowing:** Slices audio into **1.0-second windows** (16,000 samples) with **50% overlap** (8,000-sample hop).
+3. **Log-Mel Spectrogram Extraction:**
+   - FFT size: 512 points
+   - Frame length: 480 samples (30 ms)
+   - Frame step: 320 samples (20 ms)
+   - Mel filterbank: 32 triangular filter bands (40 Hz – 8,000 Hz)
+   - Spectrogram tensor per window: **(49, 32, 1)**
+4. **Piezo Vibration Pairing:**
+   - Computes RMS frame energy and spectral centroid representation per frame: **(49, 2)**
+5. **Artifacts Exported in `datasets/processed/`:**
+   - `X_features.npy`: Shape `(1582, 49, 32, 1)` (32-band Log-Mel Spectrograms)
+   - `y_labels.npy`: Shape `(1582,)` (Integer class IDs 0–29)
+   - `X_vibration.npy`: Shape `(1582, 49, 2)` (Paired Piezo vibration dynamics)
+   - `class_names.json`: Mapping of class IDs to 30 defect classes
+   - `X_features_core8.npy`: Shape `(840, 49, 32, 1)` (Core 8 standardized automotive defect classes)
+   - `y_labels_core8.npy`: Shape `(840,)` (Core 8 class labels)
+   - `class_names_core8.json`: Core 8 classes mapping
+   - `dataset_summary.json`: Complete dataset distribution and tensor shapes metadata
+
