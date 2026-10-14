@@ -188,7 +188,87 @@
         </div>
       </section>
 
-      <!-- Panel 5: Automotive Acoustic Defect Library (Ishan's Dataset & Test Clips) -->
+      <!-- Panel 5: Autonomous Continual Self-Learning Engine (On-Device ML) -->
+      <section class="card span-3" id="panel-learner">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a10 10 0 1 0 10 10H12V2z"/>
+              <path d="M12 2a10 10 0 0 1 10 10"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <h2>Autonomous Continual Self-Learning Engine (ESP32-S3 On-Device ML)</h2>
+          </div>
+          <div class="card-actions">
+            <span class="badge" id="learner-engine-pill">ENGINE: RUNNING (95%)</span>
+            <span class="badge green" id="learner-status-pill">ACTIVE SELF-LEARNING</span>
+          </div>
+        </div>
+
+        <div class="learner-grid">
+          <!-- Left: State & Regimes -->
+          <div class="learner-col">
+            <div class="subheading">OPERATIONAL DRIVING REGIME (STREAMING ADAPTATION)</div>
+            <div class="regime-chips">
+              <div class="regime-chip active" id="chip-regime-0">
+                <span class="r-icon">⚪</span>
+                <span class="r-name">IDLE</span>
+                <span class="r-sub">750 RPM</span>
+              </div>
+              <div class="regime-chip" id="chip-regime-1">
+                <span class="r-icon">🔵</span>
+                <span class="r-name">CITY DRIVE</span>
+                <span class="r-sub">1800 RPM</span>
+              </div>
+              <div class="regime-chip" id="chip-regime-2">
+                <span class="r-icon">🟣</span>
+                <span class="r-name">CRUISE</span>
+                <span class="r-sub">2800 RPM</span>
+              </div>
+            </div>
+
+            <div class="learner-metric-row">
+              <div class="metric-chip">
+                <span class="chip-lbl">LEARNED TIME</span>
+                <span class="chip-val green" id="learner-frames">0s (0 Frames)</span>
+              </div>
+              <div class="metric-chip">
+                <span class="chip-lbl">DRIFT GUARD</span>
+                <span class="chip-val blue" id="learner-guard">SHIELD ARMED (3.2σ)</span>
+              </div>
+              <div class="metric-chip">
+                <span class="chip-lbl">NVS FLASH SYNC</span>
+                <span class="chip-val" id="learner-nvs">SYNC'D (CRC32 OK)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Anomaly / Z-Score Gauge & Interactive Controls -->
+          <div class="learner-col">
+            <div class="subheading">ACOUSTIC DEFECT DRIFT GUARD (Z-SCORE METER)</div>
+            <div class="z-meter-container">
+              <div class="z-meter-labels">
+                <span>0.0σ (Healthy Baseline)</span>
+                <span class="threshold-label">3.2σ Fault Limit</span>
+                <span>> 8.0σ (Severe Defect)</span>
+              </div>
+              <div class="z-meter-track">
+                <div class="z-threshold-marker"></div>
+                <div class="z-meter-bar" id="z-meter-bar" style="width: 15%;"></div>
+              </div>
+              <div class="z-meter-val" id="z-meter-val">Current Metric: 0.82σ (Normal Adaptation)</div>
+            </div>
+
+            <div class="interactive-controls">
+              <button class="btn-sm btn-engine" id="btn-toggle-engine">🚗 Toggle Engine Run/Off</button>
+              <button class="btn-sm btn-defect" id="btn-inject-defect">💥 Inject Defect (Test Shield)</button>
+              <button class="btn-sm btn-reset" id="btn-reset-learner">🔄 Reset Learned Baseline</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 6: Automotive Acoustic Defect Library (Ishan's Dataset & Test Clips) -->
       <section class="card span-3">
         <div class="card-header">
           <div class="card-title">

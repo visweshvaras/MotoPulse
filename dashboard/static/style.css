@@ -577,8 +577,176 @@ audio { width: 100%; height: 36px; border-radius: 6px; }
 }
 
 .defect-pill.red { background: rgba(255, 51, 102, 0.15); color: var(--red); }
-.defect-pill.orange { background: rgba(255, 153, 0, 0.15); color: var(--orange); }
-.defect-pill.green { background: rgba(0, 255, 136, 0.15); color: var(--green); }
+/* Autonomous Continual Self-Learning Panel */
+.learner-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 12px 0;
+}
+
+.learner-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.subheading {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.regime-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.regime-chip {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.25s ease;
+  opacity: 0.55;
+}
+
+.regime-chip.active {
+  opacity: 1.0;
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.08);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.15);
+}
+
+.regime-chip .r-icon { font-size: 1.1rem; }
+.regime-chip .r-name { font-size: 0.82rem; font-weight: 700; color: #fff; }
+.regime-chip .r-sub { font-size: 0.7rem; font-family: var(--font-mono); color: var(--text-muted); }
+
+.learner-metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.z-meter-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.z-meter-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.z-meter-labels .threshold-label {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.z-meter-track {
+  width: 100%;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-card);
+  border-radius: 9px;
+  position: relative;
+  overflow: hidden;
+}
+
+.z-threshold-marker {
+  position: absolute;
+  left: 40%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--orange);
+  z-index: 2;
+  box-shadow: 0 0 8px var(--orange);
+}
+
+.z-meter-bar {
+  height: 100%;
+  width: 12%;
+  background: linear-gradient(90deg, var(--green), var(--cyan));
+  border-radius: 9px;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.z-meter-bar.danger {
+  background: linear-gradient(90deg, var(--orange), var(--red));
+  box-shadow: 0 0 16px rgba(255, 51, 102, 0.6);
+}
+
+.z-meter-val {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--cyan);
+}
+
+.interactive-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-card);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  transition: all 0.2s ease;
+}
+
+.btn-sm:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-defect {
+  border-color: rgba(255, 51, 102, 0.4);
+  color: var(--red);
+}
+
+.btn-defect:hover {
+  background: rgba(255, 51, 102, 0.2);
+  border-color: var(--red);
+}
+
+.btn-engine {
+  border-color: rgba(0, 255, 136, 0.4);
+  color: var(--green);
+}
+
+.btn-engine:hover {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: var(--green);
+}
+
+.btn-reset {
+  border-color: rgba(0, 240, 255, 0.4);
+  color: var(--cyan);
+}
+
+.btn-reset:hover {
+  background: rgba(0, 240, 255, 0.2);
+  border-color: var(--cyan);
+}
 
 /* Footer */
 .cockpit-footer {
@@ -596,4 +764,6 @@ audio { width: 100%; height: 36px; border-radius: 6px; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .span-2, .span-3 { grid-column: span 1; }
   .seismo-metrics { grid-template-columns: repeat(2, 1fr); }
+  .learner-grid { grid-template-columns: 1fr; }
+  .interactive-controls { flex-wrap: wrap; }
 }

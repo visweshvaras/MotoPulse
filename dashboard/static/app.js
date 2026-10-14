@@ -173,7 +173,24 @@
     latestAudioPlayer: document.getElementById('latest-audio-player'),
 
     // Defect Library Table
-    datasetTbody: document.getElementById('dataset-tbody')
+    datasetTbody: document.getElementById('dataset-tbody'),
+
+    // Continual Learner Panel
+    learnerEnginePill: document.getElementById('learner-engine-pill'),
+    learnerStatusPill: document.getElementById('learner-status-pill'),
+    chipRegimes: [
+      document.getElementById('chip-regime-0'),
+      document.getElementById('chip-regime-1'),
+      document.getElementById('chip-regime-2')
+    ],
+    learnerFrames: document.getElementById('learner-frames'),
+    learnerGuard: document.getElementById('learner-guard'),
+    learnerNvs: document.getElementById('learner-nvs'),
+    zMeterBar: document.getElementById('z-meter-bar'),
+    zMeterVal: document.getElementById('z-meter-val'),
+    btnToggleEngine: document.getElementById('btn-toggle-engine'),
+    btnInjectDefect: document.getElementById('btn-inject-defect'),
+    btnResetLearner: document.getElementById('btn-reset-learner')
   };
 
   // --- Canvas Contexts ---
@@ -353,6 +370,11 @@
     if (Array.isArray(pkt.wave_r) && pkt.wave_r.length > 0) {
       const count = Math.min(128, pkt.wave_r.length);
       for (let i = 0; i < count; i++) state.waveRight[i] = pkt.wave_r[i];
+    }
+
+    // Continual Learner Telemetry Update
+    if (pkt.learner) {
+      updateContinualLearnerUI(pkt.learner);
     }
   }
 
@@ -1333,11 +1355,151 @@
       .replace(/'/g, '&#039;');
   }
 
+  // --- Autonomous Continual Learner UI Update & Controls ---
+  function updateContinualLearnerUI(lrn) {
+    if (!lrn) return;
+
+    // Engine running pill
+    if (dom.learnerEnginePill) {
+      const conf = lrn.confidence ?? 95;
+      if (lrn.is_running) {
+        dom.learnerEnginePill.textContent = `ENGINE: RUNNING (${conf}%)`;
+        dom.learnerEnginePill.style.color = 'var(--green)';
+        dom.learnerEnginePill.style.borderColor = 'rgba(0, 255, 136, 0.4)';
+        dom.learnerEnginePill.style.background = 'rgba(0, 255, 136, 0.12)';
+      } else {
+        dom.learnerEnginePill.textContent = 'ENGINE: OFF (PARKED)';
+        dom.learnerEnginePill.style.color = 'var(--text-muted)';
+        dom.learnerEnginePill.style.borderColor = 'var(--border-card)';
+        dom.learnerEnginePill.style.background = 'rgba(255, 255, 255, 0.04)';
+      }
+    }
+
+    // Status pill
+    if (dom.learnerStatusPill) {
+      if (lrn.is_anomaly || lrn.status === 'ANOMALY_DETECTED') {
+        dom.learnerStatusPill.textContent = '🛡️ SHIELD LOCKED (DEFECT DETECTED)';
+        dom.learnerStatusPill.style.color = '#ff3366';
+        dom.learnerStatusPill.style.borderColor = 'rgba(255, 51, 102, 0.6)';
+        dom.learnerStatusPill.style.background = 'rgba(255, 51, 102, 0.2)';
+      } else if (lrn.is_running && lrn.status === 'ADAPTING_BASELINE') {
+        dom.learnerStatusPill.textContent = '⚡ ACTIVE SELF-LEARNING';
+        dom.learnerStatusPill.style.color = 'var(--green)';
+        dom.learnerStatusPill.style.borderColor = 'rgba(0, 255, 136, 0.4)';
+        dom.learnerStatusPill.style.background = 'rgba(0, 255, 136, 0.12)';
+      } else if (lrn.status === 'BOOTSTRAPPING') {
+        dom.learnerStatusPill.textContent = '🌱 BOOTSTRAPPING MANIFOLD';
+        dom.learnerStatusPill.style.color = 'var(--cyan)';
+        dom.learnerStatusPill.style.borderColor = 'rgba(0, 240, 255, 0.4)';
+        dom.learnerStatusPill.style.background = 'rgba(0, 240, 255, 0.12)';
+      } else {
+        dom.learnerStatusPill.textContent = 'RESTING (ENGINE OFF)';
+        dom.learnerStatusPill.style.color = 'var(--text-muted)';
+        dom.learnerStatusPill.style.borderColor = 'var(--border-card)';
+        dom.learnerStatusPill.style.background = 'rgba(255, 255, 255, 0.04)';
+      }
+    }
+
+    // Regime chips
+    const activeRegime = lrn.regime ?? 0;
+    if (dom.chipRegimes) {
+      dom.chipRegimes.forEach((chip, idx) => {
+        if (chip) {
+          if (lrn.is_running && idx === activeRegime) {
+            chip.classList.add('active');
+          } else {
+            chip.classList.remove('active');
+          }
+        }
+      });
+    }
+
+    // Learned time
+    if (dom.learnerFrames) {
+      const tot = lrn.total_learned ?? 0;
+      dom.learnerFrames.textContent = `${tot}s (${tot} Frames)`;
+    }
+
+    // Drift guard badge
+    if (dom.learnerGuard) {
+      if (lrn.is_anomaly) {
+        dom.learnerGuard.textContent = 'BASELINE PROTECTED (DRIFT FROZEN)';
+        dom.learnerGuard.style.color = 'var(--red)';
+      } else {
+        dom.learnerGuard.textContent = 'SHIELD ARMED (3.2σ)';
+        dom.learnerGuard.style.color = 'var(--blue)';
+      }
+    }
+
+    // Z-Meter bar
+    const score = Number(lrn.score ?? 0.8);
+    if (dom.zMeterBar) {
+      const pct = Math.min(100, Math.max(5, (score / 8.0) * 100));
+      dom.zMeterBar.style.width = `${pct}%`;
+      if (score >= 3.2 || lrn.is_anomaly) {
+        dom.zMeterBar.classList.add('danger');
+      } else {
+        dom.zMeterBar.classList.remove('danger');
+      }
+    }
+
+    if (dom.zMeterVal) {
+      if (score >= 3.2 || lrn.is_anomaly) {
+        dom.zMeterVal.textContent = `ALERT: ${score.toFixed(2)}σ (Defect Exceeds 3.2σ Limit — Baseline Frozen)`;
+        dom.zMeterVal.style.color = 'var(--red)';
+      } else if (!lrn.is_running) {
+        dom.zMeterVal.textContent = 'Current Metric: 0.00σ (Engine Off)';
+        dom.zMeterVal.style.color = 'var(--text-muted)';
+      } else {
+        dom.zMeterVal.textContent = `Current Metric: ${score.toFixed(2)}σ (Normal Vehicle Baseline Adaptation)`;
+        dom.zMeterVal.style.color = 'var(--cyan)';
+      }
+    }
+  }
+
+  function initContinualLearnerControls() {
+    if (dom.btnToggleEngine) {
+      dom.btnToggleEngine.addEventListener('click', function () {
+        fetch('/api/learner/toggle_engine', { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            console.log('[Learner] Toggled engine state:', data);
+          })
+          .catch(e => console.error(e));
+      });
+    }
+
+    if (dom.btnInjectDefect) {
+      dom.btnInjectDefect.addEventListener('click', function () {
+        fetch('/api/learner/simulate_defect', { method: 'POST' })
+          .then(r => r.json())
+          .then(data => {
+            console.log('[Learner] Injected defect simulation:', data);
+          })
+          .catch(e => console.error(e));
+      });
+    }
+
+    if (dom.btnResetLearner) {
+      dom.btnResetLearner.addEventListener('click', function () {
+        if (confirm('Reset learned vehicle baseline to factory defaults?')) {
+          fetch('/api/learner/reset', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+              console.log('[Learner] Baseline reset:', data);
+            })
+            .catch(e => console.error(e));
+        }
+      });
+    }
+  }
+
   // --- Initialization on DOM Ready ---
   function init() {
     initCanvases();
     connectWebSocket();
     initAudioRecorder();
+    initContinualLearnerControls();
     loadDatasetTable();
     requestAnimationFrame(renderLoop);
   }

@@ -44,6 +44,25 @@ serial_lock = threading.Lock()
 connected_websockets = set()
 server_running = True
 
+# Import Online Continual Learner
+sys.path.insert(0, os.path.join(BASE_DIR, "datasets", "models"))
+try:
+    from online_continual_learner import OnlineVehicleLearner
+    g_online_learner = OnlineVehicleLearner(embedding_dim=48, learning_rate=0.04, anomaly_threshold_sigma=3.2)
+    # Check if a previously saved vehicle profile exists
+    profile_path = os.path.join(BASE_DIR, "datasets", "models", "learned_vehicle_profile.json")
+    if os.path.exists(profile_path):
+        with open(profile_path, "r") as f:
+            prof = json.load(f)
+            g_online_learner.restore_nvs_profile(prof)
+            print(f"[LEARNER] Restored vehicle profile: {g_online_learner.total_frames_learned} frames remembered!")
+except Exception as e:
+    print(f"[LEARNER] Failed to initialize online continual learner: {e}")
+    g_online_learner = None
+
+g_sim_engine_running = True
+g_sim_defect_frames_remaining = 0
+
 # Latest telemetry cache for clients (compatible with app.js packet parser)
 latest_telemetry = {
     "timestamp": time.time(),
@@ -82,6 +101,18 @@ latest_telemetry = {
         "peak_hold": 110,
         "knock": False,
         "state": "RESTING / NORMAL"
+    },
+    "learner": {
+        "is_running": True,
+        "status": "ADAPTING_BASELINE",
+        "regime": 0,
+        "regime_name": "Idle (750 RPM)",
+        "score": 0.85,
+        "is_anomaly": False,
+        "learned": True,
+        "total_learned": 0,
+        "confidence": 95.0,
+        "anomaly_count": 0
     }
 }
 
@@ -390,6 +421,17 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
             res = record_vehicle_audio(seconds)
             self.send_json_response(res)
             return
+        elif path == "/api/learner/status":
+            if g_online_learner:
+                prof = g_online_learner.serialize_nvs_profile()
+                prof["running_confidence"] = round(g_online_learner.running_confidence * 100, 1)
+                prof["is_running"] = g_online_learner.is_running
+                prof["anomaly_count"] = g_online_learner.anomaly_count
+                prof["sim_engine_running"] = g_sim_engine_running
+                self.send_json_response(prof)
+            else:
+                self.send_json_response({"error": "Learner not initialized"})
+            return
 
         # 2. Audio recordings streaming (/audio/<filename>)
         if path.startswith("/audio/"):
@@ -434,6 +476,7 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND, f"File not found: {path}")
 
     def do_POST(self):
+        global g_sim_engine_running, g_sim_defect_frames_remaining
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/record":
             content_length = int(self.headers.get('Content-Length', 0))
@@ -447,6 +490,28 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
                 pass
             res = record_vehicle_audio(seconds)
             self.send_json_response(res)
+        elif parsed.path == "/api/learner/toggle_engine":
+            g_sim_engine_running = not g_sim_engine_running
+            self.send_json_response({
+                "status": "OK",
+                "engine_running": g_sim_engine_running
+            })
+        elif parsed.path == "/api/learner/simulate_defect":
+            g_sim_defect_frames_remaining = 35  # Inject 35 frames of knock/bearing defect
+            self.send_json_response({
+                "status": "DEFECT_INJECTED",
+                "frames": 35
+            })
+        elif parsed.path == "/api/learner/reset":
+            if g_online_learner:
+                g_online_learner.regime_counts = np.zeros(g_online_learner.num_regimes, dtype=np.int32)
+                g_online_learner.regime_means = np.zeros((g_online_learner.num_regimes, g_online_learner.embedding_dim), dtype=np.float32)
+                g_online_learner.regime_vars = np.ones((g_online_learner.num_regimes, g_online_learner.embedding_dim), dtype=np.float32) * 0.15
+                g_online_learner.total_frames_learned = 0
+                g_online_learner.anomaly_count = 0
+                self.send_json_response({"status": "RESET_OK"})
+            else:
+                self.send_json_response({"error": "Learner not initialized"})
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -711,6 +776,7 @@ def telemetry_collector_thread():
         if is_hardware and ser:
             try:
                 consecutive_errors = 0
+                hw_frame_cnt = 0
                 while server_running:
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if not line:
@@ -748,6 +814,37 @@ def telemetry_collector_thread():
                             scale_ref = max(1800.0, float(max_amp) * 1.2)
                             norm_wl = [round(float(v) / scale_ref, 3) for v in raw_wl]
                             norm_wr = [round(float(v) / scale_ref, 3) for v in raw_wr]
+
+                            hw_frame_cnt += 1
+                            learner_info = latest_telemetry.get("learner", {})
+                            if g_online_learner and (hw_frame_cnt % 10 == 0):
+                                arr_l = np.array(norm_wl, dtype=np.float32)
+                                fft_vals = np.abs(np.fft.rfft(arr_l, n=64))[:32]
+                                fft_norm = fft_vals / (np.max(fft_vals) + 1e-5)
+                                fft_norm[0] = min(1.0, float(max_amp) / 3000.0)
+                                fft_norm[1] = min(1.0, float(grad) / 40.0)
+                                dyn16 = np.abs(np.diff(fft_norm[:17]))
+                                emb = np.concatenate([fft_norm, dyn16]).astype(np.float32)
+
+                                piezo_rms_scaled = float(pz_amp) / 1000.0
+                                audio_energy_scaled = float(max_amp) / 10000.0
+
+                                step_res = g_online_learner.update_step(emb, piezo_rms_scaled, audio_energy_scaled)
+                                regime_names = ["Idle (750 RPM)", "City Drive (1800 RPM)", "Highway Cruise (2800 RPM)"]
+                                regime_id = step_res.get("regime", 0)
+
+                                learner_info = {
+                                    "is_running": step_res["is_running"],
+                                    "status": step_res["status"],
+                                    "regime": regime_id,
+                                    "regime_name": regime_names[regime_id % len(regime_names)],
+                                    "score": step_res.get("score", 0.0),
+                                    "is_anomaly": step_res.get("is_anomaly", False),
+                                    "learned": step_res.get("learned", False),
+                                    "total_learned": g_online_learner.total_frames_learned,
+                                    "confidence": round(g_online_learner.running_confidence * 100, 1),
+                                    "anomaly_count": g_online_learner.anomaly_count
+                                }
 
                             with state_lock:
                                 latest_telemetry = {
@@ -787,7 +884,8 @@ def telemetry_collector_thread():
                                         "peak_hold": pz_peak,
                                         "knock": knock_detected,
                                         "state": vibe_state
-                                    }
+                                    },
+                                    "learner": learner_info
                                 }
             except Exception as e:
                 print(f"[BRIDGE] Hardware stream interrupted: {e}")
@@ -807,14 +905,27 @@ def telemetry_collector_thread():
         sim_tick += 1
         t_phase = sim_tick * 0.15
 
-        # Engine acoustic harmonics (idle rumble)
-        mic1_base = int(1150 + 280 * np.sin(t_phase) + 90 * np.cos(t_phase * 2.3) + np.random.randint(-40, 40))
-        # Mic 2 with spatial 4cm acoustic differential
-        grad_sim = max(2, min(25, int(5 + 3 * np.sin(t_phase * 0.7) + np.random.randint(-1, 2))))
-        mic2_base = int(mic1_base * (1.0 - (grad_sim / 100.0)))
+        # Check defect injection state
+        is_defect_injected = False
+        if g_sim_defect_frames_remaining > 0:
+            g_sim_defect_frames_remaining -= 1
+            is_defect_injected = True
+
+        if g_sim_engine_running:
+            # Engine acoustic harmonics (idle / drive rumble)
+            mic1_base = int(1150 + 280 * np.sin(t_phase) + 90 * np.cos(t_phase * 2.3) + np.random.randint(-40, 40))
+            grad_sim = max(2, min(25, int(5 + 3 * np.sin(t_phase * 0.7) + np.random.randint(-1, 2))))
+            mic2_base = int(mic1_base * (1.0 - (grad_sim / 100.0)))
+            pz_amp = int(45 + 25 * np.abs(np.sin(t_phase * 1.5)) + np.random.randint(-8, 8))
+        else:
+            # Engine Off / Parked ambient silence
+            mic1_base = int(180 + np.random.randint(-20, 20))
+            grad_sim = 2
+            mic2_base = mic1_base
+            pz_amp = int(8 + np.random.randint(-2, 2))
 
         # Periodic near-field approach trigger every ~12 seconds
-        is_near = (sim_tick % 400 > 360)
+        is_near = (sim_tick % 400 > 360) and g_sim_engine_running
         if is_near:
             mic1_base = int(mic1_base * 2.2)
             mic2_base = int(mic2_base * 1.8)
@@ -826,14 +937,17 @@ def telemetry_collector_thread():
             gate_state = "FAR_REJECTED"
             dist_cm = 74.0
             status_str = "FAR"
-        else:
+        elif g_sim_engine_running:
             gate_state = "ARMED"
             dist_cm = 65.0
             status_str = "ARMED"
+        else:
+            gate_state = "RESTING"
+            dist_cm = 99.0
+            status_str = "ENGINE_OFF"
 
-        # Piezo mechanical vibration
-        pz_amp = int(45 + 25 * np.abs(np.sin(t_phase * 1.5)) + np.random.randint(-8, 8))
-        knock_sim = (sim_tick % 350 == 120)  # occasional knock impact simulation
+        # Piezo mechanical vibration & knock injection
+        knock_sim = is_defect_injected or ((sim_tick % 450 == 120) and g_sim_engine_running)
         if knock_sim:
             pz_amp = 1450
             decay_hold = 1450
@@ -844,8 +958,51 @@ def telemetry_collector_thread():
 
         # Generate realistic 64-sample normalized audio waveforms [-1.0, 1.0]
         t_samples = np.linspace(0, 0.04, 64)
-        wave_l = [round(float(0.45 * np.sin(2 * np.pi * 95.0 * ts + t_phase) + 0.15 * np.sin(2 * np.pi * 190.0 * ts) + (np.random.random() - 0.5) * 0.08), 3) for ts in t_samples]
-        wave_r = [round(float(0.42 * np.sin(2 * np.pi * 95.0 * ts + t_phase - 0.2) + 0.14 * np.sin(2 * np.pi * 190.0 * ts) + (np.random.random() - 0.5) * 0.08), 3) for ts in t_samples]
+        if g_sim_engine_running:
+            wave_l = [round(float(0.45 * np.sin(2 * np.pi * 95.0 * ts + t_phase) + 0.15 * np.sin(2 * np.pi * 190.0 * ts) + (np.random.random() - 0.5) * 0.08), 3) for ts in t_samples]
+            wave_r = [round(float(0.42 * np.sin(2 * np.pi * 95.0 * ts + t_phase - 0.2) + 0.14 * np.sin(2 * np.pi * 190.0 * ts) + (np.random.random() - 0.5) * 0.08), 3) for ts in t_samples]
+        else:
+            wave_l = [round(float((np.random.random() - 0.5) * 0.02), 3) for _ in t_samples]
+            wave_r = [round(float((np.random.random() - 0.5) * 0.02), 3) for _ in t_samples]
+
+        if knock_sim:
+            # Inject sharp acoustic clatter spikes into waveform
+            for idx in [12, 13, 28, 29, 44, 45]:
+                wave_l[idx] = 0.95
+                wave_r[idx] = 0.88
+
+        # --- Online Continual Learning Step (~3 updates per second) ---
+        learner_info = latest_telemetry.get("learner", {})
+        if g_online_learner and (sim_tick % 10 == 0):
+            # Construct 48-D stream embedding from waveform frequency bands + dynamics
+            arr_l = np.array(wave_l, dtype=np.float32)
+            fft_vals = np.abs(np.fft.rfft(arr_l, n=64))[:32]
+            fft_norm = fft_vals / (np.max(fft_vals) + 1e-5)
+            # Incorporate energy and gradient proxies
+            fft_norm[0] = min(1.0, float(mic1_base) / 3000.0)
+            fft_norm[1] = min(1.0, float(grad_sim) / 40.0)
+            dyn16 = np.abs(np.diff(fft_norm[:17]))
+            emb = np.concatenate([fft_norm, dyn16]).astype(np.float32)
+
+            piezo_rms_scaled = float(pz_amp) / 1000.0
+            audio_energy_scaled = float(mic1_base) / 10000.0
+
+            step_res = g_online_learner.update_step(emb, piezo_rms_scaled, audio_energy_scaled)
+            regime_names = ["Idle (750 RPM)", "City Drive (1800 RPM)", "Highway Cruise (2800 RPM)"]
+            regime_id = step_res.get("regime", 0)
+
+            learner_info = {
+                "is_running": step_res["is_running"],
+                "status": step_res["status"],
+                "regime": regime_id,
+                "regime_name": regime_names[regime_id % len(regime_names)],
+                "score": step_res.get("score", 0.0),
+                "is_anomaly": step_res.get("is_anomaly", False),
+                "learned": step_res.get("learned", False),
+                "total_learned": g_online_learner.total_frames_learned,
+                "confidence": round(g_online_learner.running_confidence * 100, 1),
+                "anomaly_count": g_online_learner.anomaly_count
+            }
 
         with state_lock:
             latest_telemetry = {
@@ -885,7 +1042,8 @@ def telemetry_collector_thread():
                     "peak_hold": decay_hold,
                     "knock": knock_sim,
                     "state": vibe_state
-                }
+                },
+                "learner": learner_info
             }
 
         time.sleep(0.028)  # ~35 FPS
