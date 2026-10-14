@@ -1,0 +1,8 @@
+file_name,label,duration_sec,sample_rate,channels,bit_depth,vehicle_make_model,engine_type,sensor_location,contributor,notes
+difficult_start_VEHCar_Car_difficult_start_ID_0872_BigSoundBank.com.wav,difficult_start,45.93,16000,1,16,Passenger Car,Petrol,Engine Bay,Ishan,Difficult delayed vehicle start and extended cranking (45s)
+exhaust_leak_VEHCar_Damaged_muffler_3_parked_car_ID_1571_BigSoundBank.com.wav,exhaust_leak,16.25,16000,1,16,Passenger Car,Petrol,Exhaust Tip / Muffler,Ishan,Damaged muffler exhaust sputtering leak on parked car (16s)
+engine_startup_car-ignition-1.wav,engine_startup,29.81,16000,1,16,Passenger Car,Petrol,Engine Bay,Ishan,Car ignition start sequence (29s)
+cranking_failure_freesound_community-car-not-starting-40006.wav,cranking_failure,9.84,16000,1,16,Passenger Car,Petrol,Engine Bay,Ishan,Car not starting / failed cranking attempt (9s)
+cranking_failure_freesound_community-car-not-starting-74857.wav,cranking_failure,20.51,16000,1,16,Passenger Car,Petrol,Engine Bay,Ishan,Car not starting / struggling starter motor (20s)
+brake_squeal_magiaz-car-brake-325519.wav,brake_squeal,5.04,16000,1,16,Passenger Car,Petrol,Wheel Well / Brake Assembly,Ishan,High pitch car brake squeak friction wear (5s)
+normal_idle_soumages-car-engine-335601.wav,normal_idle,10.08,16000,1,16,Passenger Car,Petrol,Engine Bay Front,Ishan,Steady car engine sound and idle rev (10s)
