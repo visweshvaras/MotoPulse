@@ -6,5 +6,6 @@
   "4": "belt_slippage",
   "5": "exhaust_leak",
   "6": "misfire",
-  "7": "turbo_flutter"
+  "7": "turbo_flutter",
+  "8": "brake_grinding"
 }

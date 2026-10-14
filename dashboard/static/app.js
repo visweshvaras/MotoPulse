@@ -15,8 +15,8 @@
 (function () {
   'use strict';
 
-  // --- Core 8 Automotive Defect Prognostic Definitions ---
-  const CORE8_CLASSES = [
+  // --- Core 9 Automotive Defect Prognostic Definitions ---
+  const CORE9_CLASSES = [
     { key: "normal_idle", label: "Normal Engine Idle", icon: "🟢", desc: "Optimal Baseline Harmonics", color: "green" },
     { key: "valve_ticking", label: "Valve Lifter Clearance", icon: "🟡", desc: "Hydraulic Lifter Play", color: "orange" },
     { key: "bearing_wear", label: "Bearing Shell Fatigue", icon: "🟠", desc: "Auxiliary / Rod Friction", color: "orange" },
@@ -24,7 +24,8 @@
     { key: "belt_slippage", label: "Accessory Belt Slip", icon: "🟠", desc: "Elastomer Glaze & Creep", color: "orange" },
     { key: "exhaust_leak", label: "Exhaust Manifold Leak", icon: "🟠", desc: "Flange Pressure Blowby", color: "orange" },
     { key: "misfire", label: "Cylinder Misfire", icon: "🔴", desc: "Combustion Quench Event", color: "red" },
-    { key: "turbo_flutter", label: "Turbo Surge / Flutter", icon: "🟣", desc: "Diverter Valve Stiction", color: "orange" }
+    { key: "turbo_flutter", label: "Turbo Surge / Flutter", icon: "🟣", desc: "Diverter Valve Stiction", color: "orange" },
+    { key: "brake_grinding", label: "Brake Pad / Rotor Wear", icon: "🛑", desc: "Rotor Friction Grinding", color: "red" }
   ];
 
   // --- Global Telemetry State ---
@@ -89,7 +90,13 @@
 
     // Predictive Prognostics Model State
     prediction: null,
-    lastPredTime: 0
+    lastPredTime: 0,
+
+    // Diagnostic Session State (5 - 15s Fixed Prediction Lock)
+    diagDuration: 10,
+    diagState: 'STREAMING',
+    diagProgress: 0,
+    smoothedProbs: {}
   };
 
   // --- DOM References ---
@@ -97,6 +104,21 @@
     espStatus: document.getElementById('esp-status'),
     pillEsp: document.getElementById('pill-esp'),
     fpsBadge: document.getElementById('fps-badge'),
+
+    // Diagnostic Session Controller
+    btnDiag5s: document.getElementById('btn-diag-5s'),
+    btnDiag10s: document.getElementById('btn-diag-10s'),
+    btnDiag15s: document.getElementById('btn-diag-15s'),
+    btnStartDiag: document.getElementById('btn-start-diag'),
+    btnDiagIcon: document.getElementById('btn-diag-icon'),
+    btnDiagText: document.getElementById('btn-diag-text'),
+    btnResetDiag: document.getElementById('btn-reset-diag'),
+    diagTimerStatus: document.getElementById('diag-timer-status'),
+    diagTimerCountdown: document.getElementById('diag-timer-countdown'),
+    diagFill: document.getElementById('diag-fill'),
+    diagLockBadge: document.getElementById('diag-lock-badge'),
+    lockIcon: document.getElementById('lock-icon'),
+    lockText: document.getElementById('lock-text'),
 
     // Oscilloscope
     scopeCanvas: document.getElementById('scopeCanvas'),
@@ -347,14 +369,23 @@
       triggerKnockAlert();
     }
 
-    // Direct wave arrays if supplied
+    // Damped wave arrays with exponential low-pass filter to eliminate high-frequency visual jitter
     if (Array.isArray(pkt.wave_l) && pkt.wave_l.length > 0) {
       const count = Math.min(128, pkt.wave_l.length);
-      for (let i = 0; i < count; i++) state.waveLeft[i] = pkt.wave_l[i];
+      for (let i = 0; i < count; i++) {
+        state.waveLeft[i] = state.waveLeft[i] * 0.45 + pkt.wave_l[i] * 0.55;
+      }
     }
     if (Array.isArray(pkt.wave_r) && pkt.wave_r.length > 0) {
       const count = Math.min(128, pkt.wave_r.length);
-      for (let i = 0; i < count; i++) state.waveRight[i] = pkt.wave_r[i];
+      for (let i = 0; i < count; i++) {
+        state.waveRight[i] = state.waveRight[i] * 0.45 + pkt.wave_r[i] * 0.55;
+      }
+    }
+
+    // Diagnostic Session Telemetry Update (5 - 15s Fixed Prediction Lock)
+    if (pkt.diagnostic_session) {
+      updateDiagnosticSessionUI(pkt.diagnostic_session);
     }
 
     // Continual Learner Telemetry Update
@@ -1352,7 +1383,7 @@
     if (!dom.probDistribution) return;
     dom.probDistribution.innerHTML = '';
 
-    CORE8_CLASSES.forEach(item => {
+    CORE9_CLASSES.forEach(item => {
       const row = document.createElement('div');
       row.className = 'prob-row';
       row.id = `prob-row-${item.key}`;
@@ -1474,16 +1505,21 @@
       dom.primaryDiagnosis.textContent = `${primaryLbl} (${conf}%)`;
     }
 
-    // 7. 8-Class Probability Distribution Bars
+    // 7. 9-Class Probability Distribution Bars (with EMA Damping to prevent flickering)
     const topClass = pred.predicted_class || 'normal_idle';
-    CORE8_CLASSES.forEach(item => {
-      const pct = Number(probs[item.key] ?? 1.0);
+    CORE9_CLASSES.forEach(item => {
+      const targetPct = Number(probs[item.key] ?? 1.0);
+      const prevPct = state.smoothedProbs[item.key] ?? targetPct;
+      // Exponential moving average: instant update if locked, smooth damping if streaming
+      const smoothPct = (state.diagState === 'LOCKED') ? targetPct : (prevPct * 0.72 + targetPct * 0.28);
+      state.smoothedProbs[item.key] = smoothPct;
+
       const pctEl = document.getElementById(`prob-pct-${item.key}`);
       const barEl = document.getElementById(`prob-bar-${item.key}`);
       const rowEl = document.getElementById(`prob-row-${item.key}`);
 
-      if (pctEl) pctEl.textContent = `${pct.toFixed(1)}%`;
-      if (barEl) barEl.style.width = `${Math.min(100, Math.max(3, pct))}%`;
+      if (pctEl) pctEl.textContent = `${smoothPct.toFixed(1)}%`;
+      if (barEl) barEl.style.width = `${Math.min(100, Math.max(3, smoothPct))}%`;
 
       if (rowEl) {
         if (item.key === topClass) {
@@ -1493,6 +1529,93 @@
         }
       }
     });
+  }
+
+  // --- Acoustic Diagnostic Window Controls (5s - 15s Fixed Prediction Lock) ---
+  function initDiagnosticSessionControls() {
+    const durBtns = [dom.btnDiag5s, dom.btnDiag10s, dom.btnDiag15s];
+    durBtns.forEach(btn => {
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        durBtns.forEach(b => b && b.classList.remove('active'));
+        this.classList.add('active');
+        state.diagDuration = parseInt(this.dataset.sec || "10", 10);
+        if (dom.btnDiagText && state.diagState !== 'EVALUATING') {
+          dom.btnDiagText.textContent = `Start ${state.diagDuration}s Diagnostic Scan`;
+        }
+      });
+    });
+
+    if (dom.btnStartDiag) {
+      dom.btnStartDiag.addEventListener('click', function () {
+        fetch('/api/diagnostics/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ duration: state.diagDuration })
+        }).then(r => r.json()).then(diag => {
+          updateDiagnosticSessionUI(diag);
+        }).catch(err => console.error(err));
+      });
+    }
+
+    if (dom.btnResetDiag) {
+      dom.btnResetDiag.addEventListener('click', function () {
+        fetch('/api/diagnostics/reset', { method: 'POST' })
+          .then(r => r.json()).then(diag => {
+            updateDiagnosticSessionUI(diag);
+          }).catch(err => console.error(err));
+      });
+    }
+  }
+
+  function updateDiagnosticSessionUI(diag) {
+    if (!diag) return;
+    state.diagState = diag.state;
+
+    if (dom.diagFill) {
+      dom.diagFill.style.width = `${Math.min(100, Math.max(0, diag.progress_percent || 0))}%`;
+    }
+
+    if (diag.state === 'EVALUATING') {
+      if (dom.diagTimerStatus) dom.diagTimerStatus.textContent = `Profiling Acoustic Harmonics (${(diag.elapsed_seconds || 0).toFixed(1)}s)...`;
+      if (dom.diagTimerCountdown) dom.diagTimerCountdown.textContent = `${(diag.elapsed_seconds || 0).toFixed(1)}s / ${(diag.target_duration || 10).toFixed(1)}s`;
+      if (dom.btnStartDiag) dom.btnStartDiag.classList.add('evaluating');
+      if (dom.btnDiagText) dom.btnDiagText.textContent = `Analyzing Sound... (${Math.round(diag.progress_percent || 0)}%)`;
+      if (dom.btnDiagIcon) dom.btnDiagIcon.textContent = '⏳';
+      if (dom.diagLockBadge) {
+        dom.diagLockBadge.className = 'diag-lock-badge';
+        if (dom.lockIcon) dom.lockIcon.textContent = '⏱️';
+        if (dom.lockText) dom.lockText.textContent = 'ANALYZING...';
+      }
+    } else if (diag.state === 'LOCKED') {
+      const fixed = diag.fixed_diagnosis || {};
+      const stab = diag.stability_index || 98.0;
+      const isHealthy = Boolean(fixed.is_healthy);
+
+      if (dom.diagTimerStatus) dom.diagTimerStatus.textContent = `Fixed Diagnosis Locked (${stab.toFixed(1)}% Stable)`;
+      if (dom.diagTimerCountdown) dom.diagTimerCountdown.textContent = `Done (${(diag.target_duration || 10).toFixed(0)}s Scan Completed)`;
+      if (dom.btnStartDiag) dom.btnStartDiag.classList.remove('evaluating');
+      if (dom.btnDiagText) dom.btnDiagText.textContent = 'Start New Diagnostic Scan';
+      if (dom.btnDiagIcon) dom.btnDiagIcon.textContent = '🔄';
+      if (dom.diagLockBadge) {
+        dom.diagLockBadge.className = `diag-lock-badge locked ${isHealthy ? '' : 'defect'}`;
+        if (dom.lockIcon) dom.lockIcon.textContent = '🔒';
+        if (dom.lockText) dom.lockText.textContent = `FIXED LOCKED (${stab.toFixed(0)}%)`;
+      }
+    } else {
+      // STREAMING
+      if (dom.diagTimerStatus) dom.diagTimerStatus.textContent = 'Continuous Real-Time Stream';
+      if (dom.diagTimerCountdown) dom.diagTimerCountdown.textContent = `--.-s / ${(state.diagDuration || 10).toFixed(0)}s`;
+      if (dom.btnStartDiag) dom.btnStartDiag.classList.remove('evaluating');
+      if (dom.btnDiagText) dom.btnDiagText.textContent = `Start ${state.diagDuration}s Diagnostic Scan`;
+      if (dom.btnDiagIcon) dom.btnDiagIcon.textContent = '🎙️';
+      if (dom.diagFill) dom.diagFill.style.width = '0%';
+      if (dom.diagLockBadge) {
+        dom.diagLockBadge.className = 'diag-lock-badge';
+        if (dom.lockIcon) dom.lockIcon.textContent = '🔓';
+        if (dom.lockText) dom.lockText.textContent = 'STREAMING';
+      }
+    }
   }
 
   function escapeHtml(text) {

@@ -589,6 +589,192 @@ body {
 }
 
 /* AI Predictive Prognostics Engine (Panel 6) */
+.diagnostic-session-bar {
+  background: rgba(16, 21, 33, 0.85);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.diag-ctrl-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.diag-label {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.diag-pills {
+  display: flex;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.diag-pill-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.diag-pill-btn:hover {
+  color: #fff;
+}
+
+.diag-pill-btn.active {
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(58, 134, 255, 0.4);
+}
+
+.btn-start-diag {
+  background: linear-gradient(135deg, var(--cyan), var(--blue));
+  border: none;
+  color: #07090e;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.78rem;
+  padding: 7px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.3);
+}
+
+.btn-start-diag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.5);
+}
+
+.btn-start-diag.evaluating {
+  background: linear-gradient(135deg, var(--orange), #ff5500);
+  color: #fff;
+  animation: pulse-diag 1.4s infinite alternate;
+}
+
+@keyframes pulse-diag {
+  0% { box-shadow: 0 0 12px rgba(255, 153, 0, 0.3); }
+  100% { box-shadow: 0 0 28px rgba(255, 153, 0, 0.7); }
+}
+
+.btn-reset-diag {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-card);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-diag:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.diag-ctrl-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-grow: 1;
+  max-width: 480px;
+}
+
+.diag-timer-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.diag-timer-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+}
+
+.diag-timer-status {
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+.diag-timer-countdown {
+  color: var(--text-muted);
+}
+
+.diag-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-card);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.diag-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--blue));
+  border-radius: 4px;
+  transition: width 0.15s linear;
+}
+
+.diag-lock-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-card);
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.diag-lock-badge.locked {
+  background: rgba(0, 255, 136, 0.15);
+  border-color: rgba(0, 255, 136, 0.5);
+  color: var(--green);
+  box-shadow: 0 0 16px rgba(0, 255, 136, 0.25);
+}
+
+.diag-lock-badge.locked.defect {
+  background: rgba(255, 51, 102, 0.18);
+  border-color: rgba(255, 51, 102, 0.7);
+  color: #ff5277;
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.35);
+}
+
 .health-hero-banner {
   border-radius: 14px;
   padding: 18px 24px;

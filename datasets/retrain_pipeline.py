@@ -55,7 +55,8 @@ CORE_CLASSES = [
     "belt_slippage",
     "exhaust_leak",
     "misfire",
-    "turbo_flutter"
+    "turbo_flutter",
+    "brake_grinding"
 ]
 CLASS_TO_IDX = {c: i for i, c in enumerate(CORE_CLASSES)}
 IDX_TO_CLASS = {i: c for i, c in enumerate(CORE_CLASSES)}
@@ -168,7 +169,7 @@ def scan_and_catalog_files():
         if "muffler" in fn:
             catalog["exhaust_leak"].append(f)
         elif "brake" in fn:
-            catalog["belt_slippage"].append(f)
+            catalog["brake_grinding"].append(f)
         elif "difficult" in fn or "not-starting" in fn:
             catalog["misfire"].append(f)
         elif "soumages" in fn or "ignition" in fn:
@@ -184,7 +185,12 @@ def scan_and_catalog_files():
             elif "belt" in fn or "squeal" in fn: catalog["belt_slippage"].append(f)
             elif "leak" in fn or "exhaust" in fn or "chuff" in fn: catalog["exhaust_leak"].append(f)
             elif "misfire" in fn or "sputter" in fn: catalog["misfire"].append(f)
+            elif "brake" in fn or "grind" in fn: catalog["brake_grinding"].append(f)
             elif "idle" in fn or "normal" in fn: catalog["normal_idle"].append(f)
+
+    # Processed brake recordings
+    for f in glob.glob(os.path.join(PROCESSED_DIR, "brake_*.wav")):
+        catalog["brake_grinding"].append(f)
 
     # 6. Hardware recordings from audio_recordings
     hw_recs = glob.glob(os.path.join(PROJECT_ROOT, "audio_recordings", "*.wav"))
@@ -391,8 +397,11 @@ def quantize_and_export_tflite(model, X_train, X_test, y_test):
     tflite_quant_model = converter.convert()
 
     # Save tflite files
+    tflite_core9_path = os.path.join(MODELS_DIR, "motopulse_core9_classifier.tflite")
     tflite_core8_path = os.path.join(MODELS_DIR, "motopulse_core8_classifier.tflite")
     tflite_alias_path = os.path.join(MODELS_DIR, "motopulse_classifier.tflite")
+    with open(tflite_core9_path, "wb") as f:
+        f.write(tflite_quant_model)
     with open(tflite_core8_path, "wb") as f:
         f.write(tflite_quant_model)
     with open(tflite_alias_path, "wb") as f:
@@ -496,7 +505,8 @@ def main():
         "belt_slippage": 600,     # BAD DEFECT
         "exhaust_leak": 600,      # BAD DEFECT
         "misfire": 600,           # BAD DEFECT
-        "turbo_flutter": 600      # BAD DEFECT
+        "turbo_flutter": 600,     # BAD DEFECT
+        "brake_grinding": 600     # BAD DEFECT
     }
 
     all_features = []
@@ -520,9 +530,15 @@ def main():
     print("=" * 72)
 
     # Save processed numpy datasets
+    np.save(os.path.join(PROCESSED_DIR, "X_features_core9.npy"), X)
+    np.save(os.path.join(PROCESSED_DIR, "y_labels_core9.npy"), y)
     np.save(os.path.join(PROCESSED_DIR, "X_features_core8.npy"), X)
     np.save(os.path.join(PROCESSED_DIR, "y_labels_core8.npy"), y)
+    with open(os.path.join(PROCESSED_DIR, "class_names_core9.json"), "w") as f:
+        json.dump(IDX_TO_CLASS, f, indent=2)
     with open(os.path.join(PROCESSED_DIR, "class_names_core8.json"), "w") as f:
+        json.dump(IDX_TO_CLASS, f, indent=2)
+    with open(os.path.join(PROCESSED_DIR, "class_names.json"), "w") as f:
         json.dump(IDX_TO_CLASS, f, indent=2)
 
     # 3. Train/Test Stratified Split (80% Train, 20% Test)
@@ -532,7 +548,7 @@ def main():
     print(f"   Train samples: {len(X_train)} | Test samples: {len(X_test)}")
 
     # 4. Train Model
-    model, history = build_and_train_model(X_train, y_train, X_test, y_test, num_classes=8)
+    model, history = build_and_train_model(X_train, y_train, X_test, y_test, num_classes=len(CORE_CLASSES))
 
     # 5. Quantize to INT8 and export
     test_acc, report = quantize_and_export_tflite(model, X_train, X_test, y_test)

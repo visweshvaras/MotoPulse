@@ -80,15 +80,28 @@ class TinyMLPredictiveEngine:
         "belt_slippage": "Serpentine Accessory Belt Friction Loss",
         "exhaust_leak": "Exhaust Manifold / Flange Pressure Blowby",
         "misfire": "Cylinder Combustion Quench & Misfire",
-        "turbo_flutter": "Turbocharger Compressor Surge / Wastegate Stiction"
+        "turbo_flutter": "Turbocharger Compressor Surge / Wastegate Stiction",
+        "brake_grinding": "Brake Pad Wear / Rotor Friction Grinding"
     }
 
     def __init__(self):
-        self.model_path = os.path.join(MODELS_DIR, "motopulse_core8_classifier.tflite")
-        self.classes_path = os.path.join(PROCESSED_DIR, "class_names_core8.json")
+        m_paths = [
+            os.path.join(MODELS_DIR, "motopulse_core9_classifier.tflite"),
+            os.path.join(MODELS_DIR, "motopulse_classifier.tflite"),
+            os.path.join(MODELS_DIR, "motopulse_core8_classifier.tflite")
+        ]
+        self.model_path = next((p for p in m_paths if os.path.exists(p)), m_paths[0])
+
+        c_paths = [
+            os.path.join(PROCESSED_DIR, "class_names_core9.json"),
+            os.path.join(PROCESSED_DIR, "class_names.json"),
+            os.path.join(PROCESSED_DIR, "class_names_core8.json")
+        ]
+        self.classes_path = next((p for p in c_paths if os.path.exists(p)), c_paths[0])
+
         self.class_names = [
             "normal_idle", "engine_knocking", "bearing_wear", "valve_ticking",
-            "belt_slippage", "exhaust_leak", "misfire", "turbo_flutter"
+            "belt_slippage", "exhaust_leak", "misfire", "turbo_flutter", "brake_grinding"
         ]
 
         if os.path.exists(self.classes_path):
@@ -340,7 +353,18 @@ class TinyMLPredictiveEngine:
                 "degradation_stage": "Stage 2 (Compressor Surge / Diverter Valve Stiction)",
                 "health_score": round(max(25.0, 68.0 - (conf * 0.3)), 1),
                 "trend": "ACCELERATING",
-                "prescriptive_action": "Turbocharger compressor surge under deceleration. Inspect diverter valve diaphragm, boost reference hoses, and wastegate actuator."
+                "prescriptive_action": "Turbocharger wastegate flutter/compressor surge. Check recirculating diverter valve diaphragm and vacuum solenoid response."
+            }
+        elif pred_class == "brake_grinding":
+            return {
+                "rul_km": max(150, 850 - int(conf * 5)),
+                "rul_hours": max(4, 20 - int(conf * 0.15)),
+                "risk_level": "HIGH",
+                "risk_color": "red",
+                "degradation_stage": "Stage 2 (Brake Friction Material Depletion & Metal Scoring)",
+                "health_score": round(max(15.0, 42.0 - (conf * 0.25)), 1),
+                "trend": "RAPID_FRICTION_WEAR",
+                "prescriptive_action": "Metal-on-metal rotor friction detected. Inspect front and rear brake pads (<3mm limit). Check rotors for scoring grooves and heat discoloration."
             }
         else:
             return {
@@ -357,6 +381,125 @@ class TinyMLPredictiveEngine:
 
 # Instantiate Predictive Engine
 g_predictive_engine = TinyMLPredictiveEngine()
+
+
+# ==============================================================================
+# ACOUSTIC DIAGNOSTIC WINDOW ACCUMULATOR (5 - 15s CONVERGENCE & FIXED PREDICTION)
+# ==============================================================================
+class DiagnosticWindowEngine:
+    """
+    Accumulates real-time inference predictions over a user-selected window (5s, 10s, 15s)
+    to eliminate frame-by-frame fluttering and produce a stable, verified fixed diagnosis.
+    """
+    def __init__(self, default_duration=10.0):
+        self.lock = threading.Lock()
+        self.target_duration = float(default_duration)
+        self.state = "STREAMING"  # "STREAMING", "EVALUATING", "LOCKED"
+        self.start_time = 0.0
+        self.history = []  # list of (timestamp, pred_dict)
+        self.fixed_diagnosis = None
+        self.stability_index = 0.0
+
+    def start_evaluation(self, duration_sec=10.0):
+        with self.lock:
+            self.target_duration = float(duration_sec)
+            self.state = "EVALUATING"
+            self.start_time = time.time()
+            self.history = []
+            self.fixed_diagnosis = None
+            self.stability_index = 0.0
+            print(f"[DIAGNOSTIC ENGINE] Started {self.target_duration:.1f}s Acoustic Evaluation Window...")
+
+    def reset_evaluation(self):
+        with self.lock:
+            self.state = "STREAMING"
+            self.start_time = 0.0
+            self.history = []
+            self.fixed_diagnosis = None
+            self.stability_index = 0.0
+            print("[DIAGNOSTIC ENGINE] Reset to continuous stream.")
+
+    def add_prediction(self, pred):
+        with self.lock:
+            if self.state == "EVALUATING":
+                now = time.time()
+                self.history.append((now, pred))
+                elapsed = now - self.start_time
+                if elapsed >= self.target_duration:
+                    self._lock_diagnosis()
+
+    def _lock_diagnosis(self):
+        if not self.history:
+            self.state = "STREAMING"
+            return
+
+        all_classes = list(self.history[0][1].get("probabilities", {}).keys())
+        class_sums = {c: 0.0 for c in all_classes}
+        top_votes = {c: 0 for c in all_classes}
+
+        for _, p in self.history:
+            probs = p.get("probabilities", {})
+            for c, val in probs.items():
+                class_sums[c] = class_sums.get(c, 0.0) + val
+            top_c = p.get("predicted_class")
+            if top_c:
+                top_votes[top_c] = top_votes.get(top_c, 0) + 1
+
+        n = len(self.history)
+        avg_probs = {c: round(class_sums[c] / n, 1) for c in all_classes}
+        sorted_classes = sorted(avg_probs.items(), key=lambda kv: kv[1], reverse=True)
+        winner_class, winner_conf = sorted_classes[0]
+        stability = (top_votes.get(winner_class, 0) / float(n)) * 100.0
+
+        is_healthy = (winner_class == "normal_idle")
+        last_pred = self.history[-1][1]
+        authoritative_prognosis = g_predictive_engine._compute_prognosis(winner_class, winner_conf, 0.0)
+
+        self.fixed_diagnosis = {
+            "is_healthy": is_healthy,
+            "health_state": "GOOD" if is_healthy else "BAD",
+            "problem_identified": "None (Optimal Acoustic Baseline)" if is_healthy else g_predictive_engine.CLASS_LABELS.get(winner_class, winner_class.replace("_", " ").title()),
+            "predicted_class": winner_class,
+            "predicted_label": g_predictive_engine.CLASS_LABELS.get(winner_class, winner_class.replace("_", " ").title()),
+            "confidence": winner_conf,
+            "stability_index": round(stability, 1),
+            "sample_windows_analyzed": n,
+            "duration_analyzed_sec": round(self.target_duration, 1),
+            "probabilities": avg_probs,
+            "spectrum_32": last_pred.get("spectrum_32", []),
+            "prognosis": authoritative_prognosis
+        }
+
+        self.state = "LOCKED"
+        self.stability_index = round(stability, 1)
+        print(f"[DIAGNOSTIC ENGINE] 🔒 FIXED DIAGNOSIS LOCKED: {self.fixed_diagnosis['problem_identified']} ({winner_conf:.1f}% confidence, {stability:.1f}% stability over {n} windows)")
+
+    def get_status(self):
+        with self.lock:
+            now = time.time()
+            elapsed = 0.0
+            progress = 0.0
+            if self.state == "EVALUATING":
+                elapsed = max(0.0, now - self.start_time)
+                progress = min(100.0, (elapsed / max(0.1, self.target_duration)) * 100.0)
+            elif self.state == "LOCKED":
+                elapsed = self.target_duration
+                progress = 100.0
+
+            return {
+                "state": self.state,
+                "is_locked": (self.state == "LOCKED"),
+                "is_evaluating": (self.state == "EVALUATING"),
+                "target_duration": self.target_duration,
+                "elapsed_seconds": round(elapsed, 1),
+                "progress_percent": round(progress, 1),
+                "stability_index": self.stability_index,
+                "fixed_diagnosis": self.fixed_diagnosis
+            }
+
+
+# Instantiate Diagnostic Session Engine
+g_diagnostic_engine = DiagnosticWindowEngine(default_duration=10.0)
 
 # Rolling Audio Buffer (16,000 samples @ 16 kHz = 1.0 second)
 g_audio_window = np.zeros(16000, dtype=np.float32)
@@ -465,6 +608,9 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
                 pred = latest_telemetry.get("prediction", {})
             self.send_json_response(pred)
             return
+        elif path == "/api/diagnostics/status":
+            self.send_json_response(g_diagnostic_engine.get_status())
+            return
         elif path == "/api/learner/status":
             if g_online_learner:
                 prof = g_online_learner.serialize_nvs_profile()
@@ -505,16 +651,19 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
                 "status": "DEFECT_INJECTED",
                 "frames": 35
             })
-        elif parsed.path == "/api/learner/reset":
-            if g_online_learner:
-                g_online_learner.regime_counts = np.zeros(g_online_learner.num_regimes, dtype=np.int32)
-                g_online_learner.regime_means = np.zeros((g_online_learner.num_regimes, g_online_learner.embedding_dim), dtype=np.float32)
-                g_online_learner.regime_vars = np.ones((g_online_learner.num_regimes, g_online_learner.embedding_dim), dtype=np.float32) * 0.15
-                g_online_learner.total_frames_learned = 0
-                g_online_learner.anomaly_count = 0
-                self.send_json_response({"status": "RESET_OK"})
-            else:
-                self.send_json_response({"error": "Learner not initialized"})
+        elif parsed.path == "/api/diagnostics/start":
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(body)
+            except Exception:
+                data = {}
+            dur = float(data.get("duration", 10.0))
+            g_diagnostic_engine.start_evaluation(dur)
+            self.send_json_response(g_diagnostic_engine.get_status())
+        elif parsed.path == "/api/diagnostics/reset":
+            g_diagnostic_engine.reset_evaluation()
+            self.send_json_response(g_diagnostic_engine.get_status())
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -727,6 +876,7 @@ def telemetry_collector_thread():
     sim_tick = 0
     decay_hold = 0
     last_infer_time = 0.0
+    last_pred_log_time = 0.0
 
     while server_running:
         ser = None
@@ -825,6 +975,33 @@ def telemetry_collector_thread():
                             if (now - last_infer_time) >= 0.15:
                                 last_infer_time = now
                                 latest_prediction = g_predictive_engine.predict(cur_window, pz_amp)
+                                g_diagnostic_engine.add_prediction(latest_prediction)
+                                if (now - last_pred_log_time) >= 1.0:
+                                    last_pred_log_time = now
+                                    diag_cur = g_diagnostic_engine.get_status()
+                                    if diag_cur["is_locked"]:
+                                        h_state = diag_cur["fixed_diagnosis"].get("health_state", "BAD")
+                                        p_lbl = diag_cur["fixed_diagnosis"].get("predicted_label", "")
+                                        conf = diag_cur["fixed_diagnosis"].get("confidence", 0.0)
+                                        prob = diag_cur["fixed_diagnosis"].get("problem_identified", "None")
+                                        stab = diag_cur["stability_index"]
+                                        icon = "🟢" if h_state == "GOOD" else "🔴"
+                                        sys.stdout.write(f"\r[FIXED LOCKED] 🔒 {icon} {h_state} ({conf:5.1f}%, {stab:4.1f}% stable) | Fault: {p_lbl} | Problem: {prob}\n")
+                                    elif diag_cur["is_evaluating"]:
+                                        elap = diag_cur["elapsed_seconds"]
+                                        tot = diag_cur["target_duration"]
+                                        h_state = latest_prediction.get("health_state", "UNKNOWN")
+                                        conf = latest_prediction.get("confidence", 0.0)
+                                        p_lbl = latest_prediction.get("predicted_label", "")
+                                        sys.stdout.write(f"\r[EVALUATING {elap:.1f}s/{tot:.0f}s] {h_state} ({conf:5.1f}%) | Current Lead: {p_lbl}\n")
+                                    else:
+                                        h_state = latest_prediction.get("health_state", "UNKNOWN")
+                                        p_lbl = latest_prediction.get("predicted_label", "")
+                                        conf = latest_prediction.get("confidence", 0.0)
+                                        prob = latest_prediction.get("problem_identified", "None")
+                                        icon = "🟢" if h_state == "GOOD" else "🔴"
+                                        sys.stdout.write(f"\r[LIVE AUDIO ML] {icon} HEALTH: {h_state} ({conf:5.1f}%) | Fault: {p_lbl} | Problem: {prob}\n")
+                                    sys.stdout.flush()
 
                             hw_frame_cnt += 1
                             learner_info = latest_telemetry.get("learner", {})
@@ -857,7 +1034,9 @@ def telemetry_collector_thread():
                                     "anomaly_count": g_online_learner.anomaly_count
                                 }
 
-                            with state_lock:
+                                diag_status = g_diagnostic_engine.get_status()
+                                active_pred = diag_status["fixed_diagnosis"] if diag_status["is_locked"] else latest_prediction
+                                latest_prediction = active_pred
                                 latest_telemetry = {
                                     "timestamp": time.time(),
                                     "source": "hardware",
@@ -882,8 +1061,9 @@ def telemetry_collector_thread():
                                     "wave_l": norm_wl,
                                     "wave_r": norm_wr,
                                     "audio_pcm": raw_wl,  # Raw PCM samples for in-browser live listening
-                                    "spectrum_32": latest_prediction.get("spectrum_32", [0.05]*32),
-                                    "prediction": latest_prediction,
+                                    "spectrum_32": active_pred.get("spectrum_32", [0.05]*32),
+                                    "prediction": active_pred,
+                                    "diagnostic_session": diag_status,
                                     "gate": {
                                         "state": gate_state,
                                         "is_near": is_near,
@@ -979,6 +1159,7 @@ def telemetry_collector_thread():
         if (now - last_infer_time) >= 0.15:
             last_infer_time = now
             latest_prediction = g_predictive_engine.predict(cur_sim_window, pz_amp, is_simulated_defect=is_defect_sim)
+            g_diagnostic_engine.add_prediction(latest_prediction)
 
         learner_info = latest_telemetry.get("learner", {})
         if g_online_learner and (sim_tick % 10 == 0):
@@ -1010,6 +1191,9 @@ def telemetry_collector_thread():
                 "anomaly_count": g_online_learner.anomaly_count
             }
 
+        diag_status = g_diagnostic_engine.get_status()
+        active_pred = diag_status["fixed_diagnosis"] if diag_status["is_locked"] else latest_prediction
+
         with state_lock:
             latest_telemetry = {
                 "timestamp": time.time(),
@@ -1035,8 +1219,9 @@ def telemetry_collector_thread():
                 "wave_l": wave_l,
                 "wave_r": wave_r,
                 "audio_pcm": audio_pcm_samples,
-                "spectrum_32": latest_prediction.get("spectrum_32", [0.05]*32),
-                "prediction": latest_prediction,
+                "spectrum_32": active_pred.get("spectrum_32", [0.05]*32),
+                "prediction": active_pred,
+                "diagnostic_session": diag_status,
                 "gate": {
                     "state": gate_state,
                     "is_near": is_near,

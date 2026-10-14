@@ -299,8 +299,41 @@
           </div>
           <div class="card-actions">
             <span class="badge green" id="pred-health-badge">HEALTH: GOOD</span>
-            <span class="badge blue">TinyML INT8 Core-8 Model</span>
+            <span class="badge blue">TinyML INT8 Core-9 Model</span>
             <span class="badge" id="pred-risk-badge">STATUS: NOMINAL</span>
+          </div>
+        </div>
+
+        <!-- Acoustic Diagnostic Evaluation Session Controller (5s - 15s Fixed Prediction Lock) -->
+        <div class="diagnostic-session-bar" id="diagnostic-session-bar">
+          <div class="diag-ctrl-left">
+            <span class="diag-label">⏱️ DIAGNOSTIC LISTENING WINDOW:</span>
+            <div class="diag-pills">
+              <button class="diag-pill-btn" data-sec="5" id="btn-diag-5s">5s Quick</button>
+              <button class="diag-pill-btn active" data-sec="10" id="btn-diag-10s">10s Standard</button>
+              <button class="diag-pill-btn" data-sec="15" id="btn-diag-15s">15s Deep Scan</button>
+            </div>
+            <button class="btn-start-diag" id="btn-start-diag">
+              <span id="btn-diag-icon">🎙️</span>
+              <span id="btn-diag-text">Start 10s Diagnostic Evaluation</span>
+            </button>
+            <button class="btn-reset-diag" id="btn-reset-diag" title="Reset to live continuous stream">🔄 Live Stream</button>
+          </div>
+
+          <div class="diag-ctrl-right">
+            <div class="diag-timer-container">
+              <div class="diag-timer-info">
+                <span id="diag-timer-status" class="diag-timer-status">Continuous Live Stream</span>
+                <span id="diag-timer-countdown" class="diag-timer-countdown">--.-s / 10.0s</span>
+              </div>
+              <div class="diag-track">
+                <div class="diag-fill" id="diag-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+            <div class="diag-lock-badge" id="diag-lock-badge">
+              <span class="lock-icon" id="lock-icon">🔓</span>
+              <span id="lock-text">STREAMING</span>
+            </div>
           </div>
         </div>
 
@@ -403,9 +436,9 @@
             </div>
           </div>
 
-          <!-- Right Column: 8-Class Predictive Probability Distribution -->
+          <!-- Right Column: 9-Class Predictive Probability Distribution -->
           <div class="prog-col">
-            <div class="subheading">REAL-TIME VEHICLE ACOUSTIC PROBABILITY HORIZON (8 CORE CLASSES)</div>
+            <div class="subheading">REAL-TIME VEHICLE ACOUSTIC PROBABILITY HORIZON (9 CORE CLASSES)</div>
             
             <div class="prob-distribution-container" id="prob-distribution">
               <!-- Dynamically populated / updated in app.js -->
@@ -414,7 +447,7 @@
             <div class="predictive-meta-box">
               <div class="meta-row">
                 <span>Predictive Engine:</span>
-                <strong>Core-8 Depthwise CNN (49x32 Mel Spectrogram)</strong>
+                <strong>Core-9 Depthwise CNN (49x32 Mel Spectrogram)</strong>
               </div>
               <div class="meta-row">
                 <span>Latency & Cycle:</span>

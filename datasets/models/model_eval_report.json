@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-10-15T02:40:00Z",
+  "timestamp": "2026-10-15T03:55:21Z",
   "model_title": "MotoPulse Core-8 Vehicle Health & Defect Classifier",
-  "num_classes": 8,
+  "num_classes": 9,
   "class_names": [
     "normal_idle",
     "engine_knocking",
@@ -10,71 +10,56 @@
     "belt_slippage",
     "exhaust_leak",
     "misfire",
-    "turbo_flutter"
+    "turbo_flutter",
+    "brake_grinding"
   ],
-  "model_size_kb": 13.85,
+  "model_size_kb": 13.93,
   "quantization": "Full INT8",
-  "test_accuracy": 0.9759,
-  "macro_f1": 0.9764,
-  "weighted_f1": 0.9759,
+  "test_accuracy": 0.9658,
+  "macro_f1": 0.9673,
+  "weighted_f1": 0.9657,
   "confusion_matrix": [
     [
-      227,
-      3,
+      224,
+      4,
       0,
+      1,
+      1,
+      6,
       2,
+      0,
+      2
+    ],
+    [
+      0,
+      119,
+      0,
+      0,
+      0,
+      0,
+      0,
       1,
-      5,
+      0
+    ],
+    [
+      0,
+      0,
+      120,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      4,
+      0,
+      0,
+      109,
       1,
-      1
-    ],
-    [
-      0,
-      120,
       0,
       0,
-      0,
-      0,
-      0,
-      0
-    ],
-    [
-      0,
-      0,
-      120,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    [
-      0,
-      0,
-      0,
-      117,
-      3,
-      0,
-      0,
-      0
-    ],
-    [
-      0,
-      0,
-      0,
-      0,
-      120,
-      0,
-      0,
-      0
-    ],
-    [
-      0,
-      0,
-      0,
-      0,
-      0,
-      114,
       0,
       6
     ],
@@ -83,12 +68,47 @@
       0,
       0,
       0,
-      1,
-      2,
-      116,
-      1
+      120,
+      0,
+      0,
+      0,
+      0
     ],
     [
+      0,
+      0,
+      0,
+      0,
+      0,
+      113,
+      1,
+      6,
+      0
+    ],
+    [
+      3,
+      0,
+      0,
+      0,
+      0,
+      2,
+      114,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      120,
+      0
+    ],
+    [
+      0,
       0,
       0,
       0,
@@ -101,15 +121,15 @@
   ],
   "classification_report": {
     "normal_idle": {
-      "precision": 1.0,
-      "recall": 0.9458333333333333,
-      "f1-score": 0.9721627408993576,
+      "precision": 0.9696969696969697,
+      "recall": 0.9333333333333333,
+      "f1-score": 0.9511677282377919,
       "support": 240.0
     },
     "engine_knocking": {
-      "precision": 0.975609756097561,
-      "recall": 1.0,
-      "f1-score": 0.9876543209876543,
+      "precision": 0.967479674796748,
+      "recall": 0.9916666666666667,
+      "f1-score": 0.9794238683127572,
       "support": 120.0
     },
     "bearing_wear": {
@@ -119,27 +139,27 @@
       "support": 120.0
     },
     "valve_ticking": {
-      "precision": 0.9831932773109243,
-      "recall": 0.975,
-      "f1-score": 0.9790794979079498,
+      "precision": 0.990909090909091,
+      "recall": 0.9083333333333333,
+      "f1-score": 0.9478260869565217,
       "support": 120.0
     },
     "belt_slippage": {
-      "precision": 0.96,
+      "precision": 0.9836065573770492,
       "recall": 1.0,
-      "f1-score": 0.9795918367346939,
+      "f1-score": 0.9917355371900827,
       "support": 120.0
     },
     "exhaust_leak": {
-      "precision": 0.9421487603305785,
-      "recall": 0.95,
-      "f1-score": 0.946058091286307,
+      "precision": 0.9338842975206612,
+      "recall": 0.9416666666666667,
+      "f1-score": 0.9377593360995851,
       "support": 120.0
     },
     "misfire": {
-      "precision": 0.9914529914529915,
-      "recall": 0.9666666666666667,
-      "f1-score": 0.9789029535864979,
+      "precision": 0.9743589743589743,
+      "recall": 0.95,
+      "f1-score": 0.9620253164556962,
       "support": 120.0
     },
     "turbo_flutter": {
@@ -148,18 +168,24 @@
       "f1-score": 0.967741935483871,
       "support": 120.0
     },
-    "accuracy": 0.975925925925926,
+    "brake_grinding": {
+      "precision": 0.9375,
+      "recall": 1.0,
+      "f1-score": 0.967741935483871,
+      "support": 120.0
+    },
+    "accuracy": 0.9658333333333333,
     "macro avg": {
-      "precision": 0.9737380981490069,
-      "recall": 0.9796875,
-      "f1-score": 0.9763989221107914,
-      "support": 1080.0
+      "precision": 0.9661039516288326,
+      "recall": 0.9694444444444444,
+      "f1-score": 0.9672690826911309,
+      "support": 1200.0
     },
     "weighted avg": {
-      "precision": 0.9766560872435618,
-      "recall": 0.975925925925926,
-      "f1-score": 0.975928235309521,
-      "support": 1080.0
+      "precision": 0.9664632534356463,
+      "recall": 0.9658333333333333,
+      "f1-score": 0.9656589472457968,
+      "support": 1200.0
     }
   }
 }
