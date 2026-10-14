@@ -15,8 +15,10 @@ BAUD = 115200
 FIRMWARE = """
 import machine, time
 
-# ADC on GPIO 1 (11dB attenuation = full 0 to 3.3V range, 12-bit: 0..4095)
-adc = machine.ADC(machine.Pin(1))
+# Configure GPIO 1 with internal Pull-Down resistor (~45k)
+# This allows DIRECT connection of raw piezo discs without an external bleed resistor!
+pin1 = machine.Pin(1, machine.Pin.IN, machine.Pin.PULL_DOWN)
+adc = machine.ADC(pin1)
 try:
     adc.atten(machine.ADC.ATTN_11DB)
 except Exception:
