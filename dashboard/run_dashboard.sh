@@ -17,9 +17,11 @@ echo "  🏎️  MOTOPULSE™ AI VEHICLE ACOUSTIC & VIBRATION TELEMETRY COCKPIT"
 echo "  Target: http://localhost:8080"
 echo "======================================================================"
 
-# Fix serial permissions if /dev/ttyACM0 is present
+# Fix serial permissions if /dev/ttyACM0 is present and not writable
 if [ -e "/dev/ttyACM0" ]; then
-    sudo chmod 666 /dev/ttyACM0 2>/dev/null || true
+    if [ ! -w "/dev/ttyACM0" ]; then
+        sudo -n chmod 666 /dev/ttyACM0 2>/dev/null || true
+    fi
     echo "✔ Checked /dev/ttyACM0 permissions"
 fi
 
