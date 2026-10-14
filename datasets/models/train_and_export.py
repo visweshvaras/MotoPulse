@@ -134,11 +134,17 @@ def train_model(model, X_train, y_train, X_val, y_val, epochs=50):
         )
     ]
 
+    from sklearn.utils.class_weight import compute_class_weight
+    classes = np.unique(y_train)
+    weights = compute_class_weight(class_weight="balanced", classes=classes, y=y_train)
+    class_weight_dict = {int(cls): float(w) for cls, w in zip(classes, weights)}
+
     history = model.fit(
         X_train, y_train,
         validation_data=(X_val, y_val),
         epochs=epochs,
-        batch_size=16,
+        batch_size=32,
+        class_weight=class_weight_dict,
         callbacks=callbacks,
         verbose=1
     )

@@ -114,6 +114,56 @@ def extract_window_features(audio_segment, mel_fb, window_fn):
     return log_mel_tensor, vibration_tensor, summary_vibration
 
 
+def normalize_label(raw_label, file_path):
+    lbl = (raw_label or "").strip().lower()
+    path_str = file_path.lower()
+    
+    if "mlvrg-car-engine-audio" in path_str:
+        return "normal_idle"
+    if "background noise" in path_str or "background_noise" in path_str or lbl in ["background noise", "background_noise", "ambient_background"]:
+        return "ambient_noise"
+    if "air leak" in path_str or "air leak" in lbl or "vacuum leak" in path_str or "vacuum_leak" in lbl:
+        return "exhaust_leak"
+    if "oil cap" in path_str or "oil cap" in lbl or "tappet" in path_str or "lifter" in path_str:
+        return "valve_ticking"
+    if "idling" in path_str or "normal engine" in path_str or lbl in ["idling", "normal engine inside cabin"]:
+        return "normal_idle"
+    
+    LABEL_MAP = {
+        "engine_knocking": "engine_knocking",
+        "bearing_wear": "bearing_wear",
+        "valve_ticking": "valve_ticking",
+        "belt_slippage": "belt_slippage",
+        "exhaust_leak": "exhaust_leak",
+        "misfire": "misfire",
+        "turbo_flutter": "turbo_flutter",
+        "normal_idle": "normal_idle",
+        "cranking_failure": "cranking_failure",
+        "difficult_start": "difficult_start",
+        "brake_squeal": "brake_squeal",
+        "brake_grinding": "brake_grinding",
+        "engine_startup": "engine_startup",
+        "cv_joint_clicking": "cv_joint_clicking",
+        "suspension_clunking": "suspension_clunking",
+        "starter_clicking": "starter_clicking",
+        "coolant_leak_boiling": "coolant_leak_boiling",
+        "power_steering_whine": "power_steering_whine",
+        "timing_chain_rattle": "timing_chain_rattle",
+        "flywheel_chatter": "flywheel_chatter",
+        "alternator_whine": "bearing_wear",
+        "tyre_wear_roar": "tyre_wear_roar",
+        "heat_shield_rattle": "heat_shield_rattle",
+        "transmission_whine": "transmission_whine",
+        "cabin_blower_rattle": "cabin_blower_rattle",
+        "alert_chime": "alert_chime",
+        "injector_ticking": "valve_ticking",
+        "fuel_pump_buzz": "fuel_pump_buzz",
+        "intake_vacuum_leak": "exhaust_leak",
+        "electrical_relay_chatter": "electrical_relay_chatter"
+    }
+    return LABEL_MAP.get(lbl, lbl if lbl and lbl not in ["unknown", "testing"] else "normal_idle")
+
+
 def main():
     print("=" * 72)
     print("   🚗 MotoPulse TinyML Dataset Preprocessor & Feature Extraction   ")
@@ -131,24 +181,42 @@ def main():
                 fname = row.get("file_name", "").strip()
                 if fname:
                     manifest_map[fname] = row
+                    manifest_map[os.path.basename(fname)] = row
 
-    raw_files = sorted([f for f in os.listdir(RAW_DIR) if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))])
-    if not raw_files:
-        print("[INFO] No raw audio files found in datasets/raw/.")
+    search_dirs = [RAW_DIR, os.path.join(BASE_DIR, "11.maindataset")]
+    raw_file_entries = []
+    seen_paths = set()
+    for s_dir in search_dirs:
+        if not os.path.exists(s_dir):
+            continue
+        for root, dirs, files in os.walk(s_dir):
+            if "processed" in root:
+                continue
+            for f in sorted(files):
+                if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a")):
+                    full_p = os.path.join(root, f)
+                    if full_p in seen_paths:
+                        continue
+                    seen_paths.add(full_p)
+                    rel_p = os.path.relpath(full_p, RAW_DIR)
+                    raw_file_entries.append((full_p, rel_p, f))
+
+    if not raw_file_entries:
+        print("[INFO] No raw audio files found.")
         return
 
-    print(f"[STAGE 1] Standardizing {len(raw_files)} audio files to 16,000 Hz 16-bit Mono PCM WAV...\n")
+    print(f"[STAGE 1] Standardizing {len(raw_file_entries)} audio files to 16,000 Hz 16-bit Mono PCM WAV...\n")
 
     processed_rows = []
     processed_audio_paths = []
 
-    for f in raw_files:
-        in_path = os.path.join(RAW_DIR, f)
-        meta = manifest_map.get(f, {})
-        label = meta.get("label", "unknown_defect")
+    for in_path, rel_p, f in raw_file_entries:
+        meta = manifest_map.get(rel_p) or manifest_map.get(f) or manifest_map.get(os.path.basename(rel_p)) or {}
+        raw_label = meta.get("label", "")
+        label = normalize_label(raw_label, in_path)
 
-        clean_base = os.path.splitext(f)[0]
-        clean_base = clean_base.replace(" ", "_").replace("(", "").replace(")", "").replace("[", "").replace("]", "")
+        clean_rel = rel_p.replace("/", "__").replace("\\", "__").replace(" ", "_").replace("(", "").replace(")", "").replace("[", "").replace("]", "")
+        clean_base, _ = os.path.splitext(clean_rel)
         if not clean_base.startswith(label):
             out_name = f"{label}_{clean_base}.wav"
         else:
@@ -156,40 +224,46 @@ def main():
 
         out_path = os.path.join(PROCESSED_DIR, out_name)
 
-        # Standardize using ffmpeg
-        cmd = [
-            "ffmpeg", "-y", "-i", in_path,
-            "-ac", str(TARGET_CHANNELS),
-            "-ar", str(TARGET_SAMPLE_RATE),
-            "-c:a", "pcm_s16le",
-            out_path
-        ]
-        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if res.returncode == 0:
-            size_kb = os.path.getsize(out_path) / 1024.0
-            dur_cmd = ["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", out_path]
-            dur_res = subprocess.run(dur_cmd, capture_output=True, text=True)
-            dur_sec = float(dur_res.stdout.strip() or 0.0)
+        # Standardize using ffmpeg if not already processed
+        need_convert = True
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 1024:
+            need_convert = False
 
-            print(f"  ✔ [DONE] {out_name[:48]:<48} | {dur_sec:5.1f}s | {size_kb:6.1f} KB")
+        if need_convert:
+            cmd = [
+                "ffmpeg", "-y", "-i", in_path,
+                "-ac", str(TARGET_CHANNELS),
+                "-ar", str(TARGET_SAMPLE_RATE),
+                "-c:a", "pcm_s16le",
+                out_path
+            ]
+            res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if res.returncode != 0:
+                print(f"  ❌ [FAIL] Could not process {f}")
+                continue
 
-            row_out = {
-                "file_name": out_name,
-                "label": label,
-                "duration_sec": round(dur_sec, 2),
-                "sample_rate": TARGET_SAMPLE_RATE,
-                "channels": TARGET_CHANNELS,
-                "bit_depth": 16,
-                "vehicle_make_model": meta.get("vehicle_make_model", "Passenger Car"),
-                "engine_type": meta.get("engine_type", "Petrol"),
-                "sensor_location": meta.get("sensor_location", "Engine Bay"),
-                "contributor": meta.get("recorded_by", "Ishan"),
-                "notes": meta.get("notes", "")
-            }
-            processed_rows.append(row_out)
-            processed_audio_paths.append((out_path, label, out_name))
-        else:
-            print(f"  ❌ [FAIL] Could not process {f}")
+        size_kb = os.path.getsize(out_path) / 1024.0
+        dur_cmd = ["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", out_path]
+        dur_res = subprocess.run(dur_cmd, capture_output=True, text=True)
+        dur_sec = float(dur_res.stdout.strip() or 0.0)
+
+        row_out = {
+            "file_name": out_name,
+            "label": label,
+            "duration_sec": round(dur_sec, 2),
+            "sample_rate": TARGET_SAMPLE_RATE,
+            "channels": TARGET_CHANNELS,
+            "bit_depth": 16,
+            "vehicle_make_model": meta.get("vehicle_make_model", "Passenger Car"),
+            "engine_type": meta.get("engine_type", "Petrol"),
+            "sensor_location": meta.get("sensor_location", "Engine Bay"),
+            "contributor": meta.get("recorded_by", "Team"),
+            "notes": meta.get("notes", "")
+        }
+        processed_rows.append(row_out)
+        processed_audio_paths.append((out_path, label, out_name))
+
+    print(f"  ✔ Successfully standardized {len(processed_audio_paths)} audio files.\n")
 
     # Write processed manifest
     fieldnames = [
@@ -329,9 +403,25 @@ def main():
 
     mask_core = [idx_to_class[y] in core_class_to_idx for y in y_labels]
     mask_core = np.array(mask_core)
-    X_core = X_features[mask_core]
-    vib_core = X_vibration[mask_core]
-    y_core = np.array([core_class_to_idx[idx_to_class[y]] for y in y_labels[mask_core]], dtype=np.int64)
+    X_core_raw = X_features[mask_core]
+    vib_core_raw = X_vibration[mask_core]
+    y_core_raw = np.array([core_class_to_idx[idx_to_class[y]] for y in y_labels[mask_core]], dtype=np.int64)
+
+    # Balance Core-8 classes to prevent normal_idle from overwhelming fault classes (cap normal_idle at 600)
+    np.random.seed(42)
+    selected_core_indices = []
+    for c_name, c_idx in core_class_to_idx.items():
+        c_samples = np.where(y_core_raw == c_idx)[0]
+        if c_name == "normal_idle" and len(c_samples) > 600:
+            chosen = np.random.choice(c_samples, size=600, replace=False)
+            selected_core_indices.extend(chosen)
+        else:
+            selected_core_indices.extend(c_samples)
+
+    selected_core_indices = np.array(sorted(selected_core_indices))
+    X_core = X_core_raw[selected_core_indices]
+    vib_core = vib_core_raw[selected_core_indices]
+    y_core = y_core_raw[selected_core_indices]
 
     # Save Core-8 files
     np.save(os.path.join(PROCESSED_DIR, "X_features_core8.npy"), X_core)

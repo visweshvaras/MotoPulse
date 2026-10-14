@@ -1,32 +1,32 @@
 {
-  "total_audio_files": 61,
-  "total_windows": 1582,
+  "total_audio_files": 289,
+  "total_windows": 10068,
   "sample_rate_hz": 16000,
   "window_duration_sec": 1.0,
   "overlap_percentage": 50.0,
   "feature_shapes": {
     "X_features": [
-      1582,
+      10068,
       49,
       32,
       1
     ],
     "y_labels": [
-      1582
+      10068
     ],
     "X_vibration": [
-      1582,
+      10068,
       49,
       2
     ],
     "vibration_summary": [
-      1582,
+      10068,
       2
     ]
   },
   "classes": [
     "alert_chime",
-    "alternator_whine",
+    "ambient_noise",
     "bearing_wear",
     "belt_slippage",
     "brake_grinding",
@@ -43,8 +43,6 @@
     "flywheel_chatter",
     "fuel_pump_buzz",
     "heat_shield_rattle",
-    "injector_ticking",
-    "intake_vacuum_leak",
     "misfire",
     "normal_idle",
     "power_steering_whine",
@@ -56,38 +54,36 @@
     "tyre_wear_roar",
     "valve_ticking"
   ],
-  "num_classes": 30,
+  "num_classes": 28,
   "class_distribution_windows": {
     "alert_chime": 19,
-    "alternator_whine": 29,
-    "bearing_wear": 192,
-    "belt_slippage": 77,
+    "ambient_noise": 615,
+    "bearing_wear": 366,
+    "belt_slippage": 135,
     "brake_grinding": 19,
-    "brake_squeal": 9,
+    "brake_squeal": 18,
     "cabin_blower_rattle": 19,
     "coolant_leak_boiling": 19,
-    "cranking_failure": 58,
+    "cranking_failure": 116,
     "cv_joint_clicking": 19,
-    "difficult_start": 90,
+    "difficult_start": 180,
     "electrical_relay_chatter": 19,
-    "engine_knocking": 135,
-    "engine_startup": 58,
-    "exhaust_leak": 137,
-    "flywheel_chatter": 29,
+    "engine_knocking": 251,
+    "engine_startup": 116,
+    "exhaust_leak": 1510,
+    "flywheel_chatter": 58,
     "fuel_pump_buzz": 19,
     "heat_shield_rattle": 19,
-    "injector_ticking": 48,
-    "intake_vacuum_leak": 29,
-    "misfire": 48,
-    "normal_idle": 19,
-    "power_steering_whine": 48,
-    "starter_clicking": 48,
-    "suspension_clunking": 48,
-    "timing_chain_rattle": 58,
+    "misfire": 77,
+    "normal_idle": 5501,
+    "power_steering_whine": 77,
+    "starter_clicking": 77,
+    "suspension_clunking": 77,
+    "timing_chain_rattle": 116,
     "transmission_whine": 19,
-    "turbo_flutter": 116,
+    "turbo_flutter": 232,
     "tyre_wear_roar": 19,
-    "valve_ticking": 116
+    "valve_ticking": 356
   },
   "core8": {
     "classes": [
@@ -101,9 +97,9 @@
       "turbo_flutter"
     ],
     "num_classes": 8,
-    "total_windows": 840,
+    "total_windows": 3527,
     "feature_shape": [
-      840,
+      3527,
       49,
       32,
       1

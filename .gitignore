@@ -45,3 +45,5 @@ venv.bak/
 .history/
 __pycache__/
 
+# Preprocessed intermediate audio clips
+datasets/processed/*.wav
