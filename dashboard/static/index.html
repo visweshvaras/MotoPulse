@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MotoPulse™ Cockpit | AI Vehicle Acoustic & Vibration Telemetry</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="cockpit-container">
+    
+    <!-- Top Navbar -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="logo-orb"></div>
+        <div>
+          <h1 class="logo-title">MotoPulse<span>™</span></h1>
+          <p class="logo-sub">AI Automotive Acoustic & Vibration Diagnostics</p>
+        </div>
+      </div>
+      
+      <div class="status-ribbon">
+        <div class="status-pill active" id="pill-esp">
+          <span class="dot"></span> ESP32-S3: <strong id="esp-status">ONLINE</strong>
+        </div>
+        <div class="status-pill active">
+          <span class="dot green"></span> 4cm Dual Mic Array
+        </div>
+        <div class="status-pill active">
+          <span class="dot purple"></span> Piezo Knock: GPIO 1
+        </div>
+        <div class="status-pill active">
+          <span class="dot blue"></span> 0.96" OLED: 400kHz
+        </div>
+        <div class="fps-badge" id="fps-badge">38 FPS</div>
+      </div>
+    </header>
+
+    <!-- Main Grid Dashboard -->
+    <main class="dashboard-grid">
+      
+      <!-- Panel 1: Dual-Microphone Acoustic Oscilloscope -->
+      <section class="card span-2">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5v14M7 8v8M2 11v2M22 11v2"/></svg>
+            <h2>Dual-Microphone Waveform Oscilloscope (4cm Array)</h2>
+          </div>
+          <div class="legend">
+            <span class="leg-item"><span class="leg-dot cyan"></span> Mic 1 (Left Channel)</span>
+            <span class="leg-item"><span class="leg-dot green"></span> Mic 2 (Right Channel)</span>
+          </div>
+        </div>
+        
+        <div class="oscilloscope-wrapper">
+          <canvas id="scopeCanvas" width="900" height="260"></canvas>
+          <div class="scope-overlay">
+            <div class="meter-stat">
+              <span class="lbl">MIC 1 PEAK</span>
+              <span class="val cyan" id="val-mic1">0</span>
+            </div>
+            <div class="meter-stat">
+              <span class="lbl">MIC 2 PEAK</span>
+              <span class="val green" id="val-mic2">0</span>
+            </div>
+            <div class="meter-stat">
+              <span class="lbl">4cm GRADIENT (Δ)</span>
+              <span class="val yellow" id="val-grad">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dual-vu-container">
+          <div class="vu-row">
+            <span class="vu-label">MIC 1 (L)</span>
+            <div class="vu-track"><div class="vu-bar cyan" id="vu-mic1"></div></div>
+          </div>
+          <div class="vu-row">
+            <span class="vu-label">MIC 2 (R)</span>
+            <div class="vu-track"><div class="vu-bar green" id="vu-mic2"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 2: 50cm Near-Field Acoustic Perimeter Gate -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20M2 12a14.5 14.5 0 0 0 20 0"/></svg>
+            <h2>50cm Perimeter Gate</h2>
+          </div>
+          <span class="badge" id="gate-badge">ARMED</span>
+        </div>
+
+        <div class="radar-container">
+          <canvas id="radarCanvas" width="280" height="230"></canvas>
+          <div class="radar-state" id="radar-state-box">
+            <div class="state-icon" id="gate-state-icon">🛡️</div>
+            <div class="state-title" id="gate-state-title">PERIMETER GUARDED</div>
+            <div class="state-desc" id="gate-state-desc">Listening within 50cm barrier...</div>
+          </div>
+        </div>
+
+        <div class="perimeter-meter">
+          <div class="perimeter-labels">
+            <span>0cm</span>
+            <span class="target-mark">50cm Barrier</span>
+            <span>>100cm (Far)</span>
+          </div>
+          <div class="perimeter-track">
+            <div class="perimeter-threshold-line"></div>
+            <div class="perimeter-fill" id="perimeter-fill"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 3: Piezoelectric Vibration & Mechanical Knock Monitor -->
+      <section class="card span-2">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <h2>Piezo Mechanical Vibration & Engine Knock Seismograph</h2>
+          </div>
+          <div class="card-actions">
+            <span class="vibe-badge" id="vibe-badge">RESTING / NORMAL</span>
+          </div>
+        </div>
+
+        <div class="seismo-wrapper">
+          <canvas id="seismoCanvas" width="900" height="190"></canvas>
+          <div class="knock-alert-box" id="knock-alert-box">
+            <span class="knock-icon">💥</span>
+            <span>MECHANICAL SHOCK / KNOCK IMPACT DETECTED!</span>
+          </div>
+        </div>
+
+        <div class="seismo-metrics">
+          <div class="metric-chip">
+            <span class="chip-lbl">RESTING BASELINE</span>
+            <span class="chip-val" id="piezo-base">2710</span>
+          </div>
+          <div class="metric-chip">
+            <span class="chip-lbl">VIBRATION AMPLITUDE</span>
+            <span class="chip-val purple" id="piezo-amp">0</span>
+          </div>
+          <div class="metric-chip">
+            <span class="chip-lbl">PEAK IMPACT HOLD</span>
+            <span class="chip-val orange" id="piezo-peak">0</span>
+          </div>
+          <div class="metric-chip">
+            <span class="chip-lbl">PIN ASSIGNMENT</span>
+            <span class="chip-val">GPIO 1 (ADC1)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 4: Live Studio Diagnostic Recorder -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            <h2>Diagnostic Audio Recorder</h2>
+          </div>
+          <span class="tag">Studio DSP</span>
+        </div>
+
+        <div class="recorder-control-box">
+          <div class="rec-status-display" id="rec-status-text">Ready to Capture Vehicle Sound</div>
+          <div class="rec-timer" id="rec-timer">00:03.0</div>
+          
+          <button class="btn-record" id="btn-record">
+            <span class="rec-dot"></span> START 3s VEHICLE RECORDING
+          </button>
+          
+          <div class="rec-dsp-pills">
+            <span>✓ 110Hz Rumble Filter</span>
+            <span>✓ 2.8kHz Vocal EQ</span>
+            <span>✓ Soft-Knee Limiter</span>
+          </div>
+        </div>
+
+        <div class="latest-playback-box" id="latest-playback-box" style="display:none;">
+          <div class="playback-title">Latest Recording (Enhanced Studio WAV):</div>
+          <audio id="latest-audio-player" controls preload="none"></audio>
+        </div>
+      </section>
+
+      <!-- Panel 5: Automotive Acoustic Defect Library (Ishan's Dataset & Test Clips) -->
+      <section class="card span-3">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <h2>Vehicle Acoustic Defect & Diagnostic Dataset (Ishan & Visweshwara)</h2>
+          </div>
+          <span class="badge blue">7 Automotive Classes (16 kHz 16-Bit PCM)</span>
+        </div>
+
+        <div class="dataset-table-container">
+          <table class="dataset-table">
+            <thead>
+              <tr>
+                <th>Defect Class</th>
+                <th>Source File</th>
+                <th>Duration</th>
+                <th>Sensor Location</th>
+                <th>Symptom & Diagnostic Notes</th>
+                <th>In-Browser Playback</th>
+              </tr>
+            </thead>
+            <tbody id="dataset-tbody">
+              <!-- Injected by app.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="cockpit-footer">
+      <p>MotoPulse™ Telemetry Cockpit • ESP32-S3 MicroPython v1.29.0 • Dual INMP441 + Piezo Vibration + SSD1306 OLED</p>
+      <p>Team: Visweshwara & Ishan Kumar (@ishannvn) • Hacktivate 2026</p>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -24,12 +24,13 @@ show_menu() {
     echo "  3) 📺 Live OLED Oscilloscope Waveform (Pure Waveform on Screen, No Words)"
     echo "  4) 🎯 50cm Near-Field Perimeter Gate (4cm Dual-Mic Spatial Gating)"
     echo "  5) ⚡ Piezo Vibration & Knock Sensor Monitor (GPIO 1 ADC)"
-    echo "  6) 🎵 Record Audio Clip (3 Seconds -> Studio Enhanced MP3 & WAV)"
-    echo "  7) 📁 Open Recordings Folder in File Manager"
-    echo "  8) 🔊 Play Latest Recording"
-    echo "  9) ❌ Exit"
+    echo "  6) 🌐 Launch Web Telemetry Cockpit (Dashboard for Judges)"
+    echo "  7) 🎵 Record Audio Clip (3 Seconds -> Studio Enhanced MP3 & WAV)"
+    echo "  8) 📁 Open Recordings Folder in File Manager"
+    echo "  9) 🔊 Play Latest Recording"
+    echo " 10) ❌ Exit"
     echo "============================================================"
-    echo -n "Select an option [1-9]: "
+    echo -n "Select an option [1-10]: "
 }
 
 run_live_feed() {
@@ -68,6 +69,14 @@ run_piezo() {
     clear
     echo "Launching Piezoelectric Vibration & Knock Monitor... (Press Ctrl+C to stop)"
     python3 "/home/vishwa/Documents/hacktivate/piezo_test/test_piezo_live.py"
+    echo -e "\nPress Enter to return to menu..."
+    read -r
+}
+
+run_dashboard() {
+    clear
+    echo "Launching MotoPulse Web Telemetry Cockpit (Dashboard for Judges)..."
+    bash "/home/vishwa/Documents/hacktivate/dashboard/run_dashboard.sh"
     echo -e "\nPress Enter to return to menu..."
     read -r
 }
@@ -119,6 +128,10 @@ case "$1" in
         run_piezo
         exit 0
         ;;
+    dashboard|web|cockpit|ui)
+        run_dashboard
+        exit 0
+        ;;
     record|song)
         python3 "$DIR/record_inmp441.py" --seconds 3
         exit 0
@@ -142,15 +155,16 @@ while true; do
         3) run_oled_spectrum ;;
         4) run_50cm_demo ;;
         5) run_piezo ;;
-        6) run_record_3 ;;
-        7) open_folder ;;
-        8) play_latest ;;
-        9|q|Q) 
+        6) run_dashboard ;;
+        7) run_record_3 ;;
+        8) open_folder ;;
+        9) play_latest ;;
+        10|q|Q) 
             echo "Exiting. Happy listening!"
             exit 0
             ;;
         *)
-            echo "Invalid choice. Please select 1-9."
+            echo "Invalid choice. Please select 1-10."
             sleep 1
             ;;
     esac
