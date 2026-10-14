@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/home/vishwa/Documents/hacktivate/motopulse_kicad/motopulse.kicad_sch")
-		(date "2026-10-14T19:08:02")
+		(date "2026-10-14T19:44:06")
 		(tool "Eeschema 10.0.6-10.0.6~ubuntu26.04.1")
 		(sheet
 			(number "1")
