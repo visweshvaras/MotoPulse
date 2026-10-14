@@ -181,10 +181,10 @@ def main():
                 player.terminate()
             except Exception:
                 pass
-        ser.write(b'\r\x03\r\x02')
+        ser.write(b'\r\x03\r\x02\r\x04')
         time.sleep(0.1)
         ser.close()
-        print("Live feed closed cleanly.")
+        print("Live feed closed cleanly. On-device display resumed.")
 
 if __name__ == '__main__':
     main()

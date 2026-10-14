@@ -100,10 +100,10 @@ while True:
                     print(f"\rVU: [{bar}] | Peak: {p2p:6d} | {status:<25}", end="", flush=True)
     except KeyboardInterrupt:
         print("\n\nStopped by user.")
-        ser.write(b'\r\x03')
+        ser.write(b'\r\x03\r\x02\r\x04')
         time.sleep(0.1)
-        ser.write(b'audio.deinit()\r\x04')
         ser.close()
+        print("On-device MotoPulse display resumed.")
 
 if __name__ == "__main__":
     main()

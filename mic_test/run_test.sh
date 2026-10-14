@@ -28,9 +28,10 @@ show_menu() {
     echo "  7) 🎵 Record Audio Clip (3 Seconds -> Studio Enhanced MP3 & WAV)"
     echo "  8) 📁 Open Recordings Folder in File Manager"
     echo "  9) 🔊 Play Latest Recording"
-    echo " 10) ❌ Exit"
+    echo " 10) 🖥️  Install/Restore Persistent OLED Display Engine (Works Anytime)"
+    echo " 11) ❌ Exit"
     echo "============================================================"
-    echo -n "Select an option [1-10]: "
+    echo -n "Select an option [1-11]: "
 }
 
 run_live_feed() {
@@ -159,12 +160,19 @@ while true; do
         7) run_record_3 ;;
         8) open_folder ;;
         9) play_latest ;;
-        10|q|Q) 
+        10) 
+            clear
+            echo "Installing / Restoring Persistent OLED Display Engine..."
+            python3 "/home/vishwa/Documents/hacktivate/scripts/install_esp32_display.py"
+            echo -e "\nPress Enter to return to menu..."
+            read -r
+            ;;
+        11|q|Q) 
             echo "Exiting. Happy listening!"
             exit 0
             ;;
         *)
-            echo "Invalid choice. Please select 1-10."
+            echo "Invalid choice. Please select 1-11."
             sleep 1
             ;;
     esac

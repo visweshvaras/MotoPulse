@@ -655,8 +655,43 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
 # TELEMETRY ENGINE & ESP32 HARDWARE BRIDGE
 # ==============================================================================
 ESP32_TELEMETRY_SCRIPT = """
-import machine, time, gc
+import machine, framebuf, time, gc
 gc.collect()
+
+# 1. 9-clock I2C bus recovery
+scl_rec = machine.Pin(8, machine.Pin.OUT)
+for _ in range(9):
+    scl_rec.value(0)
+    time.sleep_us(5)
+    scl_rec.value(1)
+    time.sleep_us(5)
+
+# Fast 400 kHz I2C
+i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
+addr = 0x3C
+
+temp = bytearray(2)
+temp[0] = 0x80
+def write_cmd(c):
+    temp[1] = c
+    try: i2c.writeto(addr, temp)
+    except: pass
+
+# Init SSD1306 128x64 display
+for c in (0xAE, 0xD5, 0x80, 0xA8, 63, 0xD3, 0x00, 0x40, 0x8D, 0x14,
+          0x20, 0x00, 0xA1, 0xC8, 0xDA, 0x12, 0x81, 0xFF, 0xD9, 0xF1,
+          0xDB, 0x40, 0xA4, 0xA6, 0xAF):
+    write_cmd(c)
+
+buf = bytearray(128 * 8)
+fb = framebuf.FrameBuffer(buf, 128, 64, framebuf.MONO_VLSB)
+write_list = [b"\\x40", buf]
+
+def flush_display():
+    write_cmd(0x21); write_cmd(0); write_cmd(127)
+    write_cmd(0x22); write_cmd(0); write_cmd(7)
+    try: i2c.writevto(addr, write_list)
+    except: pass
 
 # 16kHz Stereo I2S INMP441 Microphone (SCK=4, WS=5, SD=6)
 audio = machine.I2S(
@@ -683,11 +718,13 @@ for _ in range(5): audio.readinto(buf_in)
 calib_vals = [adc.read() for _ in range(32)]
 dc_piezo = sum(calib_vals) // 32
 decay_peak = 0
+frame_count = 0
 
 print("TEL_READY")
 
 while True:
     audio.readinto(buf_in)
+    frame_count += 1
     
     left = []
     right = []
@@ -718,13 +755,55 @@ while True:
     pz_amp = pz_max - pz_min
     if pz_amp > decay_peak: decay_peak = pz_amp
     else: decay_peak = max(0, decay_peak - 25)
+
+    is_running = (max_amp > 800) or (decay_peak > 180)
+    is_anomaly = (decay_peak > 1400) or (max_amp > 8500 and grad > 45)
+
+    # Render OLED Frame (30 FPS)
+    fb.fill(0)
+    fb.text("MOTOPULSE", 0, 1, 1)
+    if is_anomaly:
+        fb.fill_rect(82, 0, 46, 10, 1)
+        fb.text("!WARN", 84, 1, 0)
+    elif is_running:
+        fb.text("[RUN]", 88, 1, 1)
+    else:
+        fb.text("[IDLE]", 80, 1, 1)
+    fb.hline(0, 11, 128, 1)
+
+    # Waveform trace
+    center_y = 30
+    scale = 16.0 / max(800, max_amp)
+    prev_y = center_y
+    for x in range(min(64, len(left))):
+        val = left[x]
+        y = center_y - int(val * scale)
+        if y < 13: y = 13
+        elif y > 48: y = 48
+        fb.line(x * 2, prev_y, x * 2 + 1, y, 1)
+        prev_y = y
+
+    # Lower VU Meters
+    audio_bar_w = min(60, int((max_amp / 7000.0) * 60))
+    fb.rect(0, 52, 62, 5, 1)
+    if audio_bar_w > 0:
+        fb.fill_rect(1, 53, audio_bar_w, 3, 1)
+
+    pz_bar_w = min(60, int((decay_peak / 1500.0) * 60))
+    fb.rect(66, 52, 62, 5, 1)
+    if pz_bar_w > 0:
+        fb.fill_rect(67, 53, pz_bar_w, 3, 1)
+
+    fb.text("MIC", 18, 57, 1)
+    fb.text("PIEZO", 80, 57, 1)
+    flush_display()
     
     w_l = ",".join(str(left[k]) for k in range(0, 64, 2))
     w_r = ",".join(str(right[k]) for k in range(0, 64, 2))
     w_p = ",".join(str(pz_samples[k]) for k in range(0, 16))
     
     print("TEL:" + str(p2p_l) + ":" + str(p2p_r) + ":" + str(grad) + ":" + str(pz_amp) + ":" + str(decay_peak) + ":" + str(dc_piezo) + ":" + w_l + ":" + w_r + ":" + w_p)
-    time.sleep_ms(20)
+    time.sleep_ms(10)
 """
 
 
@@ -748,18 +827,29 @@ def telemetry_collector_thread():
             if serial_lock.acquire(blocking=False):
                 try:
                     ser = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=1.0)
-                    ser.write(b'\r\x03\r\x03\r\x01')
-                    time.sleep(0.12)
-                    ser.read_all()
-                    ser.write(ESP32_TELEMETRY_SCRIPT.encode('utf-8') + b'\x04')
-
-                    t_start = time.time()
-                    while time.time() - t_start < 4.0:
+                    
+                    # 1. Check if on-device main.py is ALREADY actively streaming TEL:
+                    t_check = time.time()
+                    while time.time() - t_check < 0.6:
                         l = ser.readline().decode('utf-8', errors='ignore').strip()
-                        if "TEL_READY" in l:
+                        if l.startswith("TEL:"):
                             is_hardware = True
-                            print(f"[BRIDGE] Connected to ESP32-S3 on {SERIAL_PORT}! Streaming live hardware telemetry.")
+                            print(f"[BRIDGE] Connected to running ESP32-S3 firmware on {SERIAL_PORT}! Streaming live hardware telemetry.")
                             break
+
+                    if not is_hardware:
+                        ser.write(b'\r\x03\r\x03\r\x01')
+                        time.sleep(0.12)
+                        ser.read_all()
+                        ser.write(ESP32_TELEMETRY_SCRIPT.encode('utf-8') + b'\x04')
+
+                        t_start = time.time()
+                        while time.time() - t_start < 4.0:
+                            l = ser.readline().decode('utf-8', errors='ignore').strip()
+                            if "TEL_READY" in l or l.startswith("TEL:"):
+                                is_hardware = True
+                                print(f"[BRIDGE] Connected to ESP32-S3 on {SERIAL_PORT}! Streaming live hardware telemetry.")
+                                break
                     if not is_hardware:
                         ser.close()
                         ser = None

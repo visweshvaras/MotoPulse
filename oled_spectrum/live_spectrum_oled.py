@@ -201,9 +201,9 @@ def main():
 
     except KeyboardInterrupt:
         print("\n\nStopping oscilloscope engine...")
-        ser.write(b'\r\x03\r\x02')
+        ser.write(b'\r\x03\r\x02\r\x04')
         ser.close()
-        print("Oscilloscope stopped cleanly.")
+        print("Oscilloscope stopped. On-device MotoPulse display resumed.")
 
 if __name__ == '__main__':
     main()
