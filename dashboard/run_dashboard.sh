@@ -38,8 +38,14 @@ if [ -n "${OLD_PID_8765}" ]; then
     kill -9 ${OLD_PID_8765} 2>/dev/null || true
 fi
 
-echo "🚀 Starting MotoPulse server (HTTP: 8080, WebSocket: 8765)..."
-python3 dashboard/server.py &
+# Select Python interpreter with TensorFlow/TFLite support if present
+PYTHON_BIN="python3"
+if [ -x "/home/vishwa/venv/bin/python3" ]; then
+    PYTHON_BIN="/home/vishwa/venv/bin/python3"
+fi
+
+echo "🚀 Starting MotoPulse server (HTTP: 8080, WebSocket: 8765) using ${PYTHON_BIN}..."
+"${PYTHON_BIN}" dashboard/server.py &
 SERVER_PID=$!
 
 # Trap Ctrl+C or kill to shut down server cleanly

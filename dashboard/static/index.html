@@ -157,34 +157,54 @@
         </div>
       </section>
 
-      <!-- Panel 4: Live Studio Diagnostic Recorder -->
+      <!-- Panel 4: Live Acoustic Ear & 32-Band Spectrum Monitor (Continuous Listening, Zero Recording) -->
       <section class="card">
         <div class="card-header">
           <div class="card-title">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-            <h2>Diagnostic Audio Recorder</h2>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+            </svg>
+            <h2>Live Acoustic Ear Monitor</h2>
           </div>
-          <span class="tag">Studio DSP</span>
+          <span class="tag live-tag">LIVE STREAM</span>
         </div>
 
-        <div class="recorder-control-box">
-          <div class="rec-status-display" id="rec-status-text">Ready to Capture Vehicle Sound</div>
-          <div class="rec-timer" id="rec-timer">00:03.0</div>
-          
-          <button class="btn-record" id="btn-record">
-            <span class="rec-dot"></span> START 3s VEHICLE RECORDING
-          </button>
-          
-          <div class="rec-dsp-pills">
-            <span>✓ 110Hz Rumble Filter</span>
-            <span>✓ 2.8kHz Vocal EQ</span>
-            <span>✓ Soft-Knee Limiter</span>
+        <div class="acoustic-ear-box">
+          <!-- Zero Recording Privacy Banner -->
+          <div class="privacy-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Zero-Storage Policy • Real-Time Predictive Stream Only</span>
           </div>
-        </div>
 
-        <div class="latest-playback-box" id="latest-playback-box" style="display:none;">
-          <div class="playback-title">Latest Recording (Enhanced Studio WAV):</div>
-          <audio id="latest-audio-player" controls preload="none"></audio>
+          <!-- 32-Band Log-Mel Spectrum Canvas -->
+          <div class="spectrum-wrapper">
+            <canvas id="spectrumCanvas" width="360" height="140"></canvas>
+            <div class="spectrum-labels">
+              <span>40 Hz</span>
+              <span>1 kHz</span>
+              <span>4 kHz</span>
+              <span>8 kHz</span>
+            </div>
+          </div>
+
+          <!-- Audio Listening Controls -->
+          <div class="ear-controls">
+            <button class="btn-ear-listen" id="btn-ear-listen">
+              <span class="ear-icon" id="ear-icon">🔊</span>
+              <span id="ear-listen-text">Listening to Vehicle Audio</span>
+            </button>
+            <div class="volume-slider-group">
+              <span class="vol-label">VOL</span>
+              <input type="range" id="ear-volume" min="0" max="100" value="75" class="vol-range">
+              <span class="vol-pct" id="vol-pct">75%</span>
+            </div>
+          </div>
+
+          <div class="ear-stream-meta">
+            <span class="meta-item"><span class="dot green"></span> 16 kHz 16-Bit Dual I2S</span>
+            <span class="meta-item" id="ear-db-level">Live Peak: -18 dBFS</span>
+          </div>
         </div>
       </section>
 
@@ -268,32 +288,124 @@
         </div>
       </section>
 
-      <!-- Panel 6: Automotive Acoustic Defect Library (Ishan's Dataset & Test Clips) -->
-      <section class="card span-3">
+      <!-- Panel 6: MotoPulse™ AI Predictive Prognostics & Health Horizon Engine -->
+      <section class="card span-3" id="panel-prognostics">
         <div class="card-header">
           <div class="card-title">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            <h2>Vehicle Acoustic Defect & Diagnostic Dataset (Ishan & Visweshwara)</h2>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <h2>MotoPulse™ AI Predictive Prognostics & Health Horizon Engine</h2>
           </div>
-          <span class="badge blue">7 Automotive Classes (16 kHz 16-Bit PCM)</span>
+          <div class="card-actions">
+            <span class="badge blue">TinyML INT8 Core-8 Model</span>
+            <span class="badge" id="pred-risk-badge">STATUS: NOMINAL</span>
+          </div>
         </div>
 
-        <div class="dataset-table-container">
-          <table class="dataset-table">
-            <thead>
-              <tr>
-                <th>Defect Class</th>
-                <th>Source File</th>
-                <th>Duration</th>
-                <th>Sensor Location</th>
-                <th>Symptom & Diagnostic Notes</th>
-                <th>In-Browser Playback</th>
-              </tr>
-            </thead>
-            <tbody id="dataset-tbody">
-              <!-- Injected by app.js -->
-            </tbody>
-          </table>
+        <div class="prognostics-grid">
+          <!-- Left Column: RUL Forecasts & Degradation Progressions -->
+          <div class="prog-col">
+            <div class="subheading">REMAINING USEFUL LIFE (RUL) FORECAST & HEALTH HORIZON</div>
+            
+            <div class="rul-cards-row">
+              <div class="rul-card">
+                <span class="rul-icon">🛣️</span>
+                <div class="rul-data">
+                  <span class="rul-val" id="rul-km">18,500 km</span>
+                  <span class="rul-lbl">ESTIMATED RUL (DISTANCE)</span>
+                </div>
+              </div>
+              <div class="rul-card">
+                <span class="rul-icon">⏱️</span>
+                <div class="rul-data">
+                  <span class="rul-val" id="rul-hours">450 hrs</span>
+                  <span class="rul-lbl">OPERATING LIFE HORIZON</span>
+                </div>
+              </div>
+              <div class="rul-card">
+                <span class="rul-icon">❤️</span>
+                <div class="rul-data">
+                  <span class="rul-val green" id="health-score">98.5%</span>
+                  <span class="rul-lbl">COMPONENT HEALTH SCORE</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Degradation Stages Stepper -->
+            <div class="degradation-stepper-box">
+              <div class="stepper-title">
+                <span>DEGRADATION PROGRESSION STAGE:</span>
+                <strong id="prog-stage-name">Stage 0 (Nominal Operation)</strong>
+              </div>
+              <div class="stages-track">
+                <div class="stage-step active" id="stage-step-0">
+                  <div class="step-num">0</div>
+                  <div class="step-info">
+                    <span class="step-name">Nominal</span>
+                    <span class="step-desc">Optimal baseline</span>
+                  </div>
+                </div>
+                <div class="stage-step" id="stage-step-1">
+                  <div class="step-num">1</div>
+                  <div class="step-info">
+                    <span class="step-name">Incipient</span>
+                    <span class="step-desc">Micro-friction creep</span>
+                  </div>
+                </div>
+                <div class="stage-step" id="stage-step-2">
+                  <div class="step-num">2</div>
+                  <div class="step-info">
+                    <span class="step-name">Active Wear</span>
+                    <span class="step-desc">Acoustic harmonic shift</span>
+                  </div>
+                </div>
+                <div class="stage-step" id="stage-step-3">
+                  <div class="step-num">3</div>
+                  <div class="step-info">
+                    <span class="step-name">Imminent Failure</span>
+                    <span class="step-desc">Service required</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prescriptive Maintenance Guidance Box -->
+            <div class="prescription-box">
+              <div class="rx-header">
+                <span class="rx-icon">📋</span>
+                <span class="rx-title">PRESCRIPTIVE MAINTENANCE ADVISORY</span>
+                <span class="rx-trend" id="rx-trend">TREND: STABLE</span>
+              </div>
+              <p class="rx-body" id="rx-body">
+                Vehicle acoustic profile optimal. Healthy baseline confirmed across all 32 Log-Mel bands. Routine oil service recommended at OEM interval.
+              </p>
+            </div>
+          </div>
+
+          <!-- Right Column: 8-Class Predictive Probability Distribution -->
+          <div class="prog-col">
+            <div class="subheading">REAL-TIME VEHICLE ACOUSTIC PROBABILITY HORIZON (8 CORE CLASSES)</div>
+            
+            <div class="prob-distribution-container" id="prob-distribution">
+              <!-- Dynamically populated / updated in app.js -->
+            </div>
+
+            <div class="predictive-meta-box">
+              <div class="meta-row">
+                <span>Predictive Engine:</span>
+                <strong>Core-8 Depthwise CNN (49x32 Mel Spectrogram)</strong>
+              </div>
+              <div class="meta-row">
+                <span>Latency & Cycle:</span>
+                <strong>~150ms Streaming Cycle • Zero Audio Recording</strong>
+              </div>
+              <div class="meta-row">
+                <span>Primary Diagnosis:</span>
+                <strong id="primary-diagnosis" class="cyan">Normal Engine Idle</strong>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

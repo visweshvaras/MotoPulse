@@ -5,79 +5,26 @@
  * 1. Dual-Microphone Oscilloscope (#scopeCanvas): 4cm baseline acoustic gradient (Left Cyan, Right Emerald)
  * 2. 50cm Acoustic Perimeter Radar (#radarCanvas): Circular sweep, proximity detection, lock states
  * 3. Piezo Seismograph (#seismoCanvas): Rolling mechanical vibration time-series chart & knock alerts
- * 4. Diagnostic Audio Recorder (#btn-record): 3s countdown & studio WAV playback
- * 5. Vehicle Defect Library Table (#dataset-tbody): Populated from /api/datasets with 7 car defect clips
+ * 4. Live Acoustic Ear & 32-Band Spectrum (#spectrumCanvas): Auto-listening, zero-recording ephemeral stream
+ * 5. MotoPulse™ AI Predictive Prognostics Horizon Engine: 8-class continuous probabilities, RUL (km/hrs), health stages
  * 6. Resilient WebSocket client (ws://localhost:8765) with auto-reconnection & lifelike simulation fallback
+ *
+ * Co-authored-by: ishannvn <ishannvn@users.noreply.github.com>
  */
 
 (function () {
   'use strict';
 
-  // --- Constants & Pre-populated Vehicle Defect Library (Ishan's 7 Car Clips) ---
-  const DEFAULT_DATASETS = [
-    {
-      file_name: "cranking_failure_freesound_community-car-not-starting-40006.wav",
-      label: "cranking_failure",
-      label_class: "red",
-      duration_sec: "9.8",
-      sensor_location: "Engine Bay",
-      notes: "Car not starting / failed cranking attempt (9s)",
-      url: "/dataset_audio/cranking_failure_freesound_community-car-not-starting-40006.wav"
-    },
-    {
-      file_name: "cranking_failure_freesound_community-car-not-starting-74857.wav",
-      label: "cranking_failure",
-      label_class: "red",
-      duration_sec: "20.5",
-      sensor_location: "Engine Bay",
-      notes: "Car not starting / struggling starter motor (20s)",
-      url: "/dataset_audio/cranking_failure_freesound_community-car-not-starting-74857.wav"
-    },
-    {
-      file_name: "difficult_start_VEHCar_Car_difficult_start_ID_0872_BigSoundBank.com.wav",
-      label: "difficult_start",
-      label_class: "orange",
-      duration_sec: "45.9",
-      sensor_location: "Engine Bay",
-      notes: "Difficult delayed vehicle start and extended cranking (45s)",
-      url: "/dataset_audio/difficult_start_VEHCar_Car_difficult_start_ID_0872_BigSoundBank.com.wav"
-    },
-    {
-      file_name: "normal_idle_soumages-car-engine-335601.wav",
-      label: "normal_idle",
-      label_class: "green",
-      duration_sec: "10.1",
-      sensor_location: "Engine Bay Front",
-      notes: "Steady car engine sound and idle rev (10s)",
-      url: "/dataset_audio/normal_idle_soumages-car-engine-335601.wav"
-    },
-    {
-      file_name: "engine_startup_car-ignition-1.wav",
-      label: "engine_startup",
-      label_class: "",
-      duration_sec: "29.8",
-      sensor_location: "Engine Bay",
-      notes: "Car ignition start sequence (29s)",
-      url: "/dataset_audio/engine_startup_car-ignition-1.wav"
-    },
-    {
-      file_name: "brake_squeal_magiaz-car-brake-325519.wav",
-      label: "brake_squeal",
-      label_class: "red",
-      duration_sec: "5.0",
-      sensor_location: "Wheel Well / Brake Assembly",
-      notes: "High pitch car brake squeak friction wear (5s)",
-      url: "/dataset_audio/brake_squeal_magiaz-car-brake-325519.wav"
-    },
-    {
-      file_name: "exhaust_leak_VEHCar_Damaged_muffler_3_parked_car_ID_1571_BigSoundBank.com.wav",
-      label: "exhaust_leak",
-      label_class: "orange",
-      duration_sec: "16.3",
-      sensor_location: "Exhaust Tip / Muffler",
-      notes: "Damaged muffler exhaust sputtering leak on parked car (16s)",
-      url: "/dataset_audio/exhaust_leak_VEHCar_Damaged_muffler_3_parked_car_ID_1571_BigSoundBank.com.wav"
-    }
+  // --- Core 8 Automotive Defect Prognostic Definitions ---
+  const CORE8_CLASSES = [
+    { key: "normal_idle", label: "Normal Engine Idle", icon: "🟢", desc: "Optimal Baseline Harmonics", color: "green" },
+    { key: "valve_ticking", label: "Valve Lifter Clearance", icon: "🟡", desc: "Hydraulic Lifter Play", color: "orange" },
+    { key: "bearing_wear", label: "Bearing Shell Fatigue", icon: "🟠", desc: "Auxiliary / Rod Friction", color: "orange" },
+    { key: "engine_knocking", label: "Detonation / Knock Shock", icon: "🔴", desc: "Pre-ignition Detonation", color: "red" },
+    { key: "belt_slippage", label: "Accessory Belt Slip", icon: "🟠", desc: "Elastomer Glaze & Creep", color: "orange" },
+    { key: "exhaust_leak", label: "Exhaust Manifold Leak", icon: "🟠", desc: "Flange Pressure Blowby", color: "orange" },
+    { key: "misfire", label: "Cylinder Misfire", icon: "🔴", desc: "Combustion Quench Event", color: "red" },
+    { key: "turbo_flutter", label: "Turbo Surge / Flutter", icon: "🟣", desc: "Diverter Valve Stiction", color: "orange" }
   ];
 
   // --- Global Telemetry State ---
@@ -128,10 +75,21 @@
     fps: 60,
     lastFpsUpdate: performance.now(),
 
-    // Audio recording state
-    isRecording: false,
-    recordTimerInterval: null,
-    currentlyPlayingAudio: null
+    // Live Acoustic Ear & Web Audio API
+    audioCtx: null,
+    audioGain: null,
+    isAudioListening: true,
+    audioVolume: 0.75,
+    audioNextTime: 0,
+    audioDbDecay: -42.0,
+
+    // 32-Band Spectrum Monitor
+    spectrum32: new Float32Array(32).fill(0.04),
+    spectrumPeaks: new Float32Array(32).fill(0.04),
+
+    // Predictive Prognostics Model State
+    prediction: null,
+    lastPredTime: 0
   };
 
   // --- DOM References ---
@@ -165,15 +123,14 @@
     piezoPeak: document.getElementById('piezo-peak'),
     vibeBadge: document.getElementById('vibe-badge'),
 
-    // Recorder
-    recStatusText: document.getElementById('rec-status-text'),
-    recTimer: document.getElementById('rec-timer'),
-    btnRecord: document.getElementById('btn-record'),
-    latestPlaybackBox: document.getElementById('latest-playback-box'),
-    latestAudioPlayer: document.getElementById('latest-audio-player'),
-
-    // Defect Library Table
-    datasetTbody: document.getElementById('dataset-tbody'),
+    // Live Acoustic Ear Monitor
+    spectrumCanvas: document.getElementById('spectrumCanvas'),
+    btnEarListen: document.getElementById('btn-ear-listen'),
+    earIcon: document.getElementById('ear-icon'),
+    earListenText: document.getElementById('ear-listen-text'),
+    earVolume: document.getElementById('ear-volume'),
+    volPct: document.getElementById('vol-pct'),
+    earDbLevel: document.getElementById('ear-db-level'),
 
     // Continual Learner Panel
     learnerEnginePill: document.getElementById('learner-engine-pill'),
@@ -190,18 +147,37 @@
     zMeterVal: document.getElementById('z-meter-val'),
     btnToggleEngine: document.getElementById('btn-toggle-engine'),
     btnInjectDefect: document.getElementById('btn-inject-defect'),
-    btnResetLearner: document.getElementById('btn-reset-learner')
+    btnResetLearner: document.getElementById('btn-reset-learner'),
+
+    // AI Predictive Prognostics Horizon Engine
+    rulKm: document.getElementById('rul-km'),
+    rulHours: document.getElementById('rul-hours'),
+    healthScore: document.getElementById('health-score'),
+    predRiskBadge: document.getElementById('pred-risk-badge'),
+    progStageName: document.getElementById('prog-stage-name'),
+    stageSteps: [
+      document.getElementById('stage-step-0'),
+      document.getElementById('stage-step-1'),
+      document.getElementById('stage-step-2'),
+      document.getElementById('stage-step-3')
+    ],
+    rxTrend: document.getElementById('rx-trend'),
+    rxBody: document.getElementById('rx-body'),
+    probDistribution: document.getElementById('prob-distribution'),
+    primaryDiagnosis: document.getElementById('primary-diagnosis')
   };
 
   // --- Canvas Contexts ---
   let scopeCtx = null;
   let radarCtx = null;
   let seismoCtx = null;
+  let spectrumCtx = null;
 
   function initCanvases() {
     if (dom.scopeCanvas) scopeCtx = dom.scopeCanvas.getContext('2d');
     if (dom.radarCanvas) radarCtx = dom.radarCanvas.getContext('2d');
     if (dom.seismoCanvas) seismoCtx = dom.seismoCanvas.getContext('2d');
+    if (dom.spectrumCanvas) spectrumCtx = dom.spectrumCanvas.getContext('2d');
   }
 
   // --- WebSocket Telemetry Stream (ws://localhost:8765) ---
@@ -376,6 +352,26 @@
     if (pkt.learner) {
       updateContinualLearnerUI(pkt.learner);
     }
+
+    // Live continuous vehicle acoustic ear stream (Privacy-safe: zero recording saved)
+    if (Array.isArray(pkt.audio_pcm) && pkt.audio_pcm.length > 0) {
+      queueLivePcmAudio(pkt.audio_pcm);
+    } else if (Array.isArray(pkt.wave_l) && pkt.wave_l.length > 0) {
+      queueLivePcmAudio(pkt.wave_l);
+    }
+
+    // 32-Band Log-Mel Spectrum Stream
+    if (Array.isArray(pkt.spectrum_32) && pkt.spectrum_32.length === 32) {
+      updateSpectrumData(pkt.spectrum_32);
+    } else if (pkt.prediction && Array.isArray(pkt.prediction.spectrum_32)) {
+      updateSpectrumData(pkt.prediction.spectrum_32);
+    }
+
+    // AI Predictive Prognostics Engine
+    if (pkt.prediction) {
+      state.prediction = pkt.prediction;
+      updatePredictivePrognosticsUI(pkt.prediction);
+    }
   }
 
   // --- Knock Alert Trigger ---
@@ -468,6 +464,59 @@
     state.targetPiezoAmp = Math.max(8, Math.round(simPiezo));
     state.targetDistance = simDist;
     state.piezoRaw = Math.round(state.piezoBaseline + (Math.random() - 0.5) * simPiezo);
+
+    // Synthesize 32-Band Log-Mel Spectrum for fallback preview
+    const simSpec = new Float32Array(32);
+    for (let b = 0; b < 32; b++) {
+      const baseFreq = Math.exp(-b / 9.0) * 0.65;
+      const wobble = Math.sin(t * (7 + b) + b) * 0.12 + Math.random() * 0.08;
+      const nearPeak = (state.isNear && b < 14) ? 0.28 : 0;
+      simSpec[b] = Math.max(0.04, Math.min(0.98, baseFreq + wobble + nearPeak));
+    }
+    updateSpectrumData(simSpec);
+
+    // Synthesize subtle continuous engine idle audio for in-browser ear monitor
+    if (state.isAudioListening && state.audioCtx && state.audioCtx.state === 'running') {
+      const pcmSim = new Float32Array(64);
+      for (let i = 0; i < 64; i++) {
+        const phi = (t * 16000 + i) * (2 * Math.PI / 16000);
+        pcmSim[i] = (Math.sin(phi * 28) * 0.22 + Math.sin(phi * 56) * 0.14 + (Math.random() - 0.5) * 0.06) * 0.35;
+      }
+      queueLivePcmAudio(pcmSim);
+    }
+
+    // Synthesize Predictive Prognostics Horizon
+    if (!state.prediction || time - state.lastPredTime > 600) {
+      state.lastPredTime = time;
+      const isKnock = state.targetPiezoAmp > 180;
+      updatePredictivePrognosticsUI({
+        predicted_class: isKnock ? "engine_knocking" : "normal_idle",
+        predicted_label: isKnock ? "Connecting Rod / Piston Detonation Knock" : "Normal Engine Idle (Optimal Acoustics)",
+        confidence: isKnock ? 78.5 : 94.8,
+        probabilities: {
+          normal_idle: isKnock ? 8.2 : 94.8,
+          engine_knocking: isKnock ? 78.5 : 1.2,
+          bearing_wear: isKnock ? 6.1 : 1.1,
+          valve_ticking: isKnock ? 2.8 : 0.9,
+          belt_slippage: isKnock ? 1.5 : 0.7,
+          exhaust_leak: isKnock ? 1.2 : 0.5,
+          misfire: isKnock ? 1.0 : 0.4,
+          turbo_flutter: isKnock ? 0.7 : 0.4
+        },
+        prognosis: {
+          rul_km: isKnock ? 1200 : 18500,
+          rul_hours: isKnock ? 28 : 450,
+          risk_level: isKnock ? "CRITICAL" : "NOMINAL",
+          risk_color: isKnock ? "red" : "green",
+          degradation_stage: isKnock ? "Stage 3 (Imminent Connecting Rod / Wrist Pin Damage)" : "Stage 0 (Nominal Operation)",
+          health_score: isKnock ? 24.0 : 98.5,
+          trend: isKnock ? "ACCELERATING WEAR" : "STABLE",
+          prescriptive_action: isKnock 
+            ? "Detonation knock detected above 350 ADC threshold. Retard ignition timing by 3 degrees and verify fuel octane."
+            : "Vehicle acoustic profile optimal. Healthy baseline confirmed across all 32 Log-Mel bands. Routine oil service recommended at OEM interval."
+        }
+      });
+    }
   }
 
   // --- Smooth Telemetry Interpolation ---
@@ -1059,6 +1108,7 @@
     renderOscilloscope();
     renderRadar();
     renderSeismograph();
+    renderSpectrumCanvas();
 
     // Calculate Dynamic FPS
     state.frameCount++;
@@ -1075,273 +1125,328 @@
     requestAnimationFrame(renderLoop);
   }
 
-  // --- Feature 4: Live Diagnostic Audio Recorder (#btn-record) ---
-  // Calls /api/record?seconds=3, animates countdown, loads & plays studio WAV
-  function initAudioRecorder() {
-    if (!dom.btnRecord) return;
+  // --- Visualizer 4: 32-Band Mel Frequency Spectrum Canvas (#spectrumCanvas) ---
+  function updateSpectrumData(bands32) {
+    if (!bands32 || bands32.length === 0) return;
+    const len = Math.min(32, bands32.length);
+    for (let i = 0; i < len; i++) {
+      const v = Math.max(0.02, Math.min(1.0, bands32[i]));
+      // Fast attack, smooth decay
+      if (v > state.spectrum32[i]) {
+        state.spectrum32[i] = v;
+      } else {
+        state.spectrum32[i] = state.spectrum32[i] * 0.92 + v * 0.08;
+      }
 
-    dom.btnRecord.addEventListener('click', function () {
-      if (state.isRecording) return;
-      startRecordingSequence();
-    });
+      // Peak hold indicator with gravity
+      if (state.spectrum32[i] > state.spectrumPeaks[i]) {
+        state.spectrumPeaks[i] = state.spectrum32[i];
+      } else {
+        state.spectrumPeaks[i] = Math.max(0.04, state.spectrumPeaks[i] - 0.015);
+      }
+    }
   }
 
-  function startRecordingSequence() {
-    state.isRecording = true;
-    if (dom.btnRecord) {
-      dom.btnRecord.disabled = true;
-      dom.btnRecord.style.opacity = '0.7';
-      dom.btnRecord.innerHTML = '<span class="rec-dot"></span> RECORDING VEHICLE SOUND (3s)...';
+  function renderSpectrumCanvas() {
+    if (!spectrumCtx || !dom.spectrumCanvas) return;
+    const ctx = spectrumCtx;
+    const w = dom.spectrumCanvas.width;
+    const h = dom.spectrumCanvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#04060a';
+    ctx.fillRect(0, 0, w, h);
+
+    // Subtle Grid Guides
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for (let y = 20; y < h; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
     }
+    ctx.restore();
 
-    if (dom.recStatusText) {
-      dom.recStatusText.textContent = '🔴 RECORDING IN PROGRESS — Dual INMP441 Studio DSP Active';
-      dom.recStatusText.style.color = 'var(--cyan)';
-    }
+    const numBars = 32;
+    const padding = 2;
+    const totalPadding = padding * (numBars + 1);
+    const barWidth = Math.max(2, (w - totalPadding) / numBars);
 
-    // High-resolution countdown timer: 3.0s down to 0.0s
-    let remainingMs = 3000;
-    const startTime = performance.now();
+    for (let i = 0; i < numBars; i++) {
+      const x = padding + i * (barWidth + padding);
+      const val = state.spectrum32[i] || 0.04;
+      const barH = Math.max(4, val * (h - 16));
+      const y = h - barH - 4;
 
-    if (state.recordTimerInterval) clearInterval(state.recordTimerInterval);
-
-    state.recordTimerInterval = setInterval(function () {
-      const elapsed = performance.now() - startTime;
-      remainingMs = Math.max(0, 3000 - elapsed);
-
-      const sec = Math.floor(remainingMs / 1000);
-      const tenths = Math.floor((remainingMs % 1000) / 100);
-      if (dom.recTimer) {
-        dom.recTimer.textContent = `00:0${sec}.${tenths}`;
+      // Equalizer Bar Gradient
+      const grad = ctx.createLinearGradient(0, h, 0, y);
+      if (val > 0.75) {
+        grad.addColorStop(0, '#00f0ff');
+        grad.addColorStop(0.6, '#ffd600');
+        grad.addColorStop(1, '#ff3366');
+      } else if (val > 0.45) {
+        grad.addColorStop(0, '#00f0ff');
+        grad.addColorStop(0.8, '#00ff88');
+        grad.addColorStop(1, '#ffd600');
+      } else {
+        grad.addColorStop(0, 'rgba(0, 240, 255, 0.6)');
+        grad.addColorStop(1, '#00f0ff');
       }
 
-      if (remainingMs <= 0) {
-        clearInterval(state.recordTimerInterval);
-        state.recordTimerInterval = null;
-      }
-    }, 60);
+      ctx.save();
+      ctx.fillStyle = grad;
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = val > 0.6 ? 8 : 3;
+      ctx.fillRect(x, y, barWidth, barH);
+      ctx.restore();
 
-    // Call /api/record?seconds=3
-    const recordUrl = '/api/record?seconds=3';
-    fetch(recordUrl, { method: 'POST' })
-      .then(function (res) {
-        if (!res.ok) {
-          // Fallback to GET if server prefers GET
-          return fetch(recordUrl);
+      // Peak Hold Cap Line
+      const peakVal = state.spectrumPeaks[i] || 0.04;
+      const peakY = Math.max(2, h - peakVal * (h - 16) - 6);
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x, peakY, barWidth, 2);
+      ctx.restore();
+    }
+  }
+
+  // --- Feature 4: Live Acoustic Ear Monitor & Web Audio API (Zero Storage) ---
+  function initLiveAudioListening() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      console.warn('[MotoPulse Ear] Web Audio API is not supported in this browser.');
+      return;
+    }
+
+    function setupAudio() {
+      if (!state.audioCtx) {
+        try {
+          state.audioCtx = new AudioContextClass({ sampleRate: 16000 });
+        } catch (e) {
+          state.audioCtx = new AudioContextClass();
         }
-        return res;
-      })
-      .then(function (res) {
-        if (!res.ok) throw new Error('Record endpoint returned status ' + res.status);
-        return res.json();
-      })
-      .then(function (data) {
-        const audioUrl = data.url || data.file || (data.filename ? `/audio/${data.filename}` : '/audio/latest_recording.wav');
-        finishRecording(audioUrl);
-      })
-      .catch(function (err) {
-        console.warn('[MotoPulse Recorder] /api/record endpoint error or offline fallback:', err);
-        // Fallback for demo when backend is in standalone test mode
-        setTimeout(function () {
-          finishRecording('/dataset_audio/normal_idle_soumages-car-engine-335601.wav');
-        }, 1200);
+        state.audioGain = state.audioCtx.createGain();
+        state.audioGain.gain.setValueAtTime(state.audioVolume, state.audioCtx.currentTime);
+        state.audioGain.connect(state.audioCtx.destination);
+      }
+      if (state.audioCtx && state.audioCtx.state === 'suspended') {
+        state.audioCtx.resume().catch(() => {});
+      }
+    }
+
+    // Auto-attempt resume on dashboard launch
+    setupAudio();
+
+    // Browser policy unlock: auto-unsuspend upon user's first natural gesture
+    const unlockEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
+    function unlockHandler() {
+      setupAudio();
+      if (state.audioCtx && state.audioCtx.state === 'running') {
+        unlockEvents.forEach(evt => window.removeEventListener(evt, unlockHandler));
+      }
+    }
+    unlockEvents.forEach(evt => window.addEventListener(evt, unlockHandler, { passive: true }));
+
+    // Listen / Mute Toggle Button
+    if (dom.btnEarListen) {
+      dom.btnEarListen.addEventListener('click', function () {
+        setupAudio();
+        state.isAudioListening = !state.isAudioListening;
+        updateEarButtonState();
       });
-  }
-
-  function finishRecording(audioUrl) {
-    state.isRecording = false;
-
-    if (state.recordTimerInterval) {
-      clearInterval(state.recordTimerInterval);
-      state.recordTimerInterval = null;
     }
 
-    if (dom.recTimer) dom.recTimer.textContent = '00:03.0';
-
-    if (dom.recStatusText) {
-      dom.recStatusText.textContent = '✓ Recording Complete • Enhanced Studio WAV Ready';
-      dom.recStatusText.style.color = 'var(--green)';
-    }
-
-    if (dom.btnRecord) {
-      dom.btnRecord.disabled = false;
-      dom.btnRecord.style.opacity = '1';
-      dom.btnRecord.innerHTML = '<span class="rec-dot"></span> START 3s VEHICLE RECORDING';
-    }
-
-    // Load and play enhanced studio WAV in #latest-audio-player
-    if (dom.latestAudioPlayer && dom.latestPlaybackBox) {
-      dom.latestPlaybackBox.style.display = 'block';
-      dom.latestAudioPlayer.src = audioUrl;
-
-      stopAllPlayingAudio();
-      state.currentlyPlayingAudio = dom.latestAudioPlayer;
-
-      const playPromise = dom.latestAudioPlayer.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(function (e) {
-          console.log('[MotoPulse Player] Browser autoplay restricted user interaction:', e);
-        });
-      }
-    }
-  }
-
-  // --- Feature 5: Automotive Defect Library Table (#dataset-tbody) ---
-  // Loads Ishan's 7 car audio recordings from /api/datasets with in-browser playback
-  function loadDatasetTable() {
-    if (!dom.datasetTbody) return;
-
-    fetch('/api/datasets')
-      .then(function (res) {
-        if (!res.ok) throw new Error('API returned ' + res.status);
-        return res.json();
-      })
-      .then(function (data) {
-        if (Array.isArray(data) && data.length > 0) {
-          renderDatasetRows(data);
-        } else {
-          renderDatasetRows(DEFAULT_DATASETS);
+    // Volume Slider
+    if (dom.earVolume) {
+      dom.earVolume.addEventListener('input', function () {
+        state.audioVolume = parseFloat(this.value) / 100.0;
+        if (dom.volPct) dom.volPct.textContent = `${Math.round(state.audioVolume * 100)}%`;
+        if (state.audioGain && state.audioCtx) {
+          state.audioGain.gain.setValueAtTime(state.isAudioListening ? state.audioVolume : 0, state.audioCtx.currentTime);
         }
-      })
-      .catch(function (err) {
-        console.log('[MotoPulse Dataset] Using built-in vehicle defect library manifest:', err);
-        renderDatasetRows(DEFAULT_DATASETS);
       });
+    }
+
+    updateEarButtonState();
   }
 
-  function renderDatasetRows(items) {
-    if (!dom.datasetTbody) return;
-    dom.datasetTbody.innerHTML = '';
-
-    items.forEach(function (item, index) {
-      const tr = document.createElement('tr');
-
-      // Determine label pill color
-      let pillClass = item.label_class || '';
-      if (!pillClass) {
-        const lbl = (item.label || '').toLowerCase();
-        if (lbl.includes('failure') || lbl.includes('squeal') || lbl.includes('knock')) {
-          pillClass = 'red';
-        } else if (lbl.includes('difficult') || lbl.includes('leak')) {
-          pillClass = 'orange';
-        } else if (lbl.includes('idle') || lbl.includes('normal')) {
-          pillClass = 'green';
-        }
+  function updateEarButtonState() {
+    if (!dom.btnEarListen) return;
+    if (state.isAudioListening) {
+      dom.btnEarListen.classList.remove('muted');
+      if (dom.earIcon) dom.earIcon.textContent = '🔊';
+      if (dom.earListenText) dom.earListenText.textContent = 'Listening to Vehicle Audio';
+      if (state.audioGain && state.audioCtx) {
+        state.audioGain.gain.setValueAtTime(state.audioVolume, state.audioCtx.currentTime);
       }
+    } else {
+      dom.btnEarListen.classList.add('muted');
+      if (dom.earIcon) dom.earIcon.textContent = '🔇';
+      if (dom.earListenText) dom.earListenText.textContent = 'Sound Muted (Click to Listen)';
+      if (state.audioGain && state.audioCtx) {
+        state.audioGain.gain.setValueAtTime(0, state.audioCtx.currentTime);
+      }
+    }
+  }
 
-      const audioSrc = item.url || item.audio_url || `/dataset_audio/${item.file_name}`;
-      const durationStr = item.duration_sec ? `${parseFloat(item.duration_sec).toFixed(1)}s` : '—';
+  function queueLivePcmAudio(pcmSamples) {
+    if (!state.isAudioListening || !state.audioCtx || state.audioCtx.state !== 'running') return;
+    if (!pcmSamples || pcmSamples.length === 0) return;
 
-      tr.innerHTML = `
-        <td>
-          <span class="defect-pill ${pillClass}">
-            ${escapeHtml(item.label || 'Vehicle Defect')}
+    const sr = state.audioCtx.sampleRate || 16000;
+    const len = pcmSamples.length;
+    let peak = 0.0001;
+
+    const buffer = state.audioCtx.createBuffer(1, len, sr);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < len; i++) {
+      let s = pcmSamples[i];
+      if (Math.abs(s) > 1.0) s = s / 32768.0;
+      s = Math.max(-1.0, Math.min(1.0, s));
+      data[i] = s;
+      const absS = Math.abs(s);
+      if (absS > peak) peak = absS;
+    }
+
+    // Dynamic dBFS calculation
+    const curDb = 20 * Math.log10(peak);
+    state.audioDbDecay = Math.max(curDb, state.audioDbDecay - 1.2);
+    if (dom.earDbLevel) {
+      dom.earDbLevel.textContent = `Live Peak: ${state.audioDbDecay.toFixed(1)} dBFS`;
+    }
+
+    const now = state.audioCtx.currentTime;
+    if (state.audioNextTime < now) {
+      state.audioNextTime = now + 0.015;
+    }
+
+    const source = state.audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(state.audioGain);
+    source.start(state.audioNextTime);
+    state.audioNextTime += buffer.duration;
+
+    // Boundary check to prevent queue runaway
+    if (state.audioNextTime > now + 0.3) {
+      state.audioNextTime = now + 0.05;
+    }
+  }
+
+  // --- Feature 5: AI Predictive Prognostics Horizon Engine ---
+  function initPredictivePrognostics() {
+    if (!dom.probDistribution) return;
+    dom.probDistribution.innerHTML = '';
+
+    CORE8_CLASSES.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'prob-row';
+      row.id = `prob-row-${item.key}`;
+      row.innerHTML = `
+        <div class="prob-header">
+          <span class="prob-label">
+            <span>${item.icon}</span>
+            <span>${item.label}</span>
           </span>
-        </td>
-        <td>
-          <code style="font-family: var(--font-mono); font-size: 0.78rem; color: #a5b4fc;">
-            ${escapeHtml(item.file_name || 'audio.wav')}
-          </code>
-        </td>
-        <td style="font-family: var(--font-mono); font-weight: 600;">
-          ${escapeHtml(durationStr)}
-        </td>
-        <td>
-          <span style="color: var(--text-muted); font-size: 0.8rem;">
-            ${escapeHtml(item.sensor_location || 'Engine Bay')}
-          </span>
-        </td>
-        <td>
-          <span style="font-size: 0.82rem; line-height: 1.4;">
-            ${escapeHtml(item.notes || 'Automotive acoustic test sample')}
-          </span>
-        </td>
-        <td style="min-width: 200px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="btn-play-clip" data-idx="${index}" style="
-              background: rgba(0, 240, 255, 0.12);
-              border: 1px solid rgba(0, 240, 255, 0.3);
-              color: var(--cyan);
-              padding: 6px 12px;
-              border-radius: 6px;
-              cursor: pointer;
-              font-family: var(--font-mono);
-              font-size: 0.75rem;
-              font-weight: 700;
-              transition: all 0.2s;
-              display: flex;
-              align-items: center;
-              gap: 4px;
-            ">
-              <span class="play-icon">▶</span> Play
-            </button>
-            <audio id="clip-audio-${index}" src="${escapeHtml(audioSrc)}" preload="none" style="display:none;"></audio>
-          </div>
-        </td>
+          <span class="prob-pct" id="prob-pct-${item.key}">0.0%</span>
+        </div>
+        <div class="prob-track">
+          <div class="prob-bar ${item.color}" id="prob-bar-${item.key}" style="width: 5%;"></div>
+        </div>
       `;
-
-      dom.datasetTbody.appendChild(tr);
-    });
-
-    // Attach click listeners for dataset play buttons
-    const playButtons = dom.datasetTbody.querySelectorAll('.btn-play-clip');
-    playButtons.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const idx = this.getAttribute('data-idx');
-        const audioEl = document.getElementById(`clip-audio-${idx}`);
-        if (!audioEl) return;
-
-        if (audioEl.paused) {
-          stopAllPlayingAudio();
-          audioEl.currentTime = 0;
-          audioEl.play().then(() => {
-            this.innerHTML = '<span class="play-icon" style="color: #ff3366;">⏸</span> Pause';
-            this.style.background = 'rgba(255, 51, 102, 0.15)';
-            this.style.borderColor = 'rgba(255, 51, 102, 0.4)';
-            this.style.color = '#ff99aa';
-            state.currentlyPlayingAudio = audioEl;
-          }).catch(function (e) {
-            console.log('Audio playback error:', e);
-          });
-
-          audioEl.onended = () => {
-            this.innerHTML = '<span class="play-icon">▶</span> Play';
-            this.style.background = 'rgba(0, 240, 255, 0.12)';
-            this.style.borderColor = 'rgba(0, 240, 255, 0.3)';
-            this.style.color = 'var(--cyan)';
-            if (state.currentlyPlayingAudio === audioEl) state.currentlyPlayingAudio = null;
-          };
-        } else {
-          audioEl.pause();
-          this.innerHTML = '<span class="play-icon">▶</span> Play';
-          this.style.background = 'rgba(0, 240, 255, 0.12)';
-          this.style.borderColor = 'rgba(0, 240, 255, 0.3)';
-          this.style.color = 'var(--cyan)';
-          if (state.currentlyPlayingAudio === audioEl) state.currentlyPlayingAudio = null;
-        }
-      });
+      dom.probDistribution.appendChild(row);
     });
   }
 
-  function stopAllPlayingAudio() {
-    if (state.currentlyPlayingAudio) {
-      try {
-        state.currentlyPlayingAudio.pause();
-      } catch (e) {}
-      state.currentlyPlayingAudio = null;
+  function updatePredictivePrognosticsUI(pred) {
+    if (!pred) return;
+    const prog = pred.prognosis || {};
+    const probs = pred.probabilities || {};
+
+    // 1. RUL Forecasts
+    if (dom.rulKm) {
+      const km = prog.rul_km ?? 18500;
+      dom.rulKm.textContent = `${Number(km).toLocaleString()} km`;
+    }
+    if (dom.rulHours) {
+      const hrs = prog.rul_hours ?? 450;
+      dom.rulHours.textContent = `${Number(hrs).toLocaleString()} hrs`;
     }
 
-    if (dom.latestAudioPlayer && !dom.latestAudioPlayer.paused) {
-      dom.latestAudioPlayer.pause();
+    // 2. Health Score
+    if (dom.healthScore) {
+      const score = Number(prog.health_score ?? 98.5);
+      dom.healthScore.textContent = `${score.toFixed(1)}%`;
+      dom.healthScore.className = 'rul-val ' + (score >= 80 ? 'green' : (score >= 45 ? 'orange' : 'red'));
     }
 
-    // Reset button states in table
-    const playButtons = document.querySelectorAll('.btn-play-clip');
-    playButtons.forEach(function (btn) {
-      btn.innerHTML = '<span class="play-icon">▶</span> Play';
-      btn.style.background = 'rgba(0, 240, 255, 0.12)';
-      btn.style.borderColor = 'rgba(0, 240, 255, 0.3)';
-      btn.style.color = 'var(--cyan)';
+    // 3. Risk Badge
+    if (dom.predRiskBadge) {
+      const risk = (prog.risk_level || 'NOMINAL').toUpperCase();
+      dom.predRiskBadge.textContent = `STATUS: ${risk}`;
+      dom.predRiskBadge.className = 'badge ' + (prog.risk_color || 'green');
+    }
+
+    // 4. Degradation Stage Stepper
+    if (dom.progStageName) {
+      dom.progStageName.textContent = prog.degradation_stage || 'Stage 0 (Nominal Operation)';
+    }
+
+    const stageStr = (prog.degradation_stage || '').toLowerCase();
+    let activeStageIdx = 0;
+    if (stageStr.includes('stage 3')) activeStageIdx = 3;
+    else if (stageStr.includes('stage 2')) activeStageIdx = 2;
+    else if (stageStr.includes('stage 1')) activeStageIdx = 1;
+
+    if (dom.stageSteps) {
+      dom.stageSteps.forEach((step, idx) => {
+        if (!step) return;
+        if (idx === activeStageIdx) {
+          step.classList.add('active');
+          if (idx >= 2) step.classList.add('danger');
+          else step.classList.remove('danger');
+        } else {
+          step.classList.remove('active', 'danger');
+        }
+      });
+    }
+
+    // 5. Prescriptive Maintenance Advisory
+    if (dom.rxTrend) {
+      dom.rxTrend.textContent = `TREND: ${prog.trend || 'STABLE'}`;
+      dom.rxTrend.style.color = (prog.trend === 'STABLE') ? 'var(--green)' : 'var(--orange)';
+    }
+    if (dom.rxBody && prog.prescriptive_action) {
+      dom.rxBody.textContent = prog.prescriptive_action;
+    }
+
+    // 6. Primary Diagnosis
+    if (dom.primaryDiagnosis) {
+      const primaryLbl = pred.predicted_label || 'Normal Engine Idle';
+      const conf = pred.confidence ?? 94.6;
+      dom.primaryDiagnosis.textContent = `${primaryLbl} (${conf}%)`;
+    }
+
+    // 7. 8-Class Probability Distribution Bars
+    const topClass = pred.predicted_class || 'normal_idle';
+    CORE8_CLASSES.forEach(item => {
+      const pct = Number(probs[item.key] ?? 1.0);
+      const pctEl = document.getElementById(`prob-pct-${item.key}`);
+      const barEl = document.getElementById(`prob-bar-${item.key}`);
+      const rowEl = document.getElementById(`prob-row-${item.key}`);
+
+      if (pctEl) pctEl.textContent = `${pct.toFixed(1)}%`;
+      if (barEl) barEl.style.width = `${Math.min(100, Math.max(3, pct))}%`;
+
+      if (rowEl) {
+        if (item.key === topClass) {
+          rowEl.classList.add('active-pred');
+        } else {
+          rowEl.classList.remove('active-pred');
+        }
+      }
     });
   }
 
@@ -1498,9 +1603,9 @@
   function init() {
     initCanvases();
     connectWebSocket();
-    initAudioRecorder();
+    initLiveAudioListening();
     initContinualLearnerControls();
-    loadDatasetTable();
+    initPredictivePrognostics();
     requestAnimationFrame(renderLoop);
   }
 
