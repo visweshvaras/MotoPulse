@@ -23,33 +23,37 @@ class SSD1306_I2C(framebuf.FrameBuffer):
         self.addr = addr
         self.pages = self.height // 8
         self.buffer = bytearray(self.pages * self.width)
-        self.temp = bytearray(2)
-        self.write_list = [b'\\x40', None]
         super().__init__(self.buffer, self.width, self.height, framebuf.MONO_VLSB)
+        self.temp = bytearray(2)
+        self.temp[0] = 0x80
+        self.write_list = [b'\\x40', None]
+        
         for cmd in (
             0xAE, 0xD5, 0x80, 0xA8, self.height - 1, 0xD3, 0x00,
             0x40, 0x8D, 0x14, 0x20, 0x00, 0xA1, 0xC8,
             0xDA, 0x12 if self.height == 64 else 0x02,
-            0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF
+            0x81, 0xFF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF
         ):
-            self.temp[0] = 0x80
-            self.temp[1] = cmd
-            self.i2c.writeto(self.addr, self.temp)
+            self.write_cmd(cmd)
         self.fill(0)
         self.show()
 
+    def write_cmd(self, cmd):
+        self.temp[1] = cmd
+        self.i2c.writeto(self.addr, self.temp)
+
     def show(self):
-        self.temp[0] = 0x80; self.temp[1] = 0x21; self.i2c.writeto(self.addr, self.temp)
-        self.temp[1] = 0; self.i2c.writeto(self.addr, self.temp)
-        self.temp[1] = self.width - 1; self.i2c.writeto(self.addr, self.temp)
-        self.temp[1] = 0x22; self.i2c.writeto(self.addr, self.temp)
-        self.temp[1] = 0; self.i2c.writeto(self.addr, self.temp)
-        self.temp[1] = self.pages - 1; self.i2c.writeto(self.addr, self.temp)
+        self.write_cmd(0x21)
+        self.write_cmd(0)
+        self.write_cmd(self.width - 1)
+        self.write_cmd(0x22)
+        self.write_cmd(0)
+        self.write_cmd(self.pages - 1)
         self.write_list[1] = self.buffer
         self.i2c.writevto(self.addr, self.write_list)
 
-# Initialize I2C for OLED Display (SCL=GPIO8, SDA=GPIO9)
-i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
+# Initialize I2C for OLED Display at rock-solid 100 kHz (SCL=GPIO8, SDA=GPIO9)
+i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=100000)
 oled = SSD1306_I2C(128, 64, i2c)
 
 # Initialize I2S for INMP441 Microphone (SCK=4, WS=5, SD=6)
@@ -117,8 +121,8 @@ while True:
         im >>= 8
         mag = int(math.sqrt(re * re + im * im))
         
-        # Scale to bar height (max height 42 pixels)
-        target_h = min(42, max(0, int(mag / 40)))
+        # Scale to bar height (max height 46 pixels for responsive dynamics)
+        target_h = min(46, max(0, int(mag / 20)))
         
         # Smooth interpolation
         smooth_bars[b] = (smooth_bars[b] * 2 + target_h) // 3
