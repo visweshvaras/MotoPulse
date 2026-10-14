@@ -74,7 +74,14 @@ You can choose any of the options:
 
 ## 📂 Repository Structure
 
-```
+├── motopulse_kicad/                 # KiCad 10 Hardware Design Package
+│   ├── motopulse.kicad_sch          # Schematic (0 ERC Errors)
+│   ├── motopulse.kicad_pcb          # PCB Layout (0 DRC Errors, 0 Unconnected)
+│   ├── motopulse_schematic.pdf      # Vector Schematic PDF
+│   ├── motopulse_pcb.pdf            # Complete Multipage PCB Layout PDF
+│   ├── motopulse_bom.csv            # Bill of Materials
+│   ├── motopulse_gerbers.zip        # Standard RS-274X Gerbers & Drill files
+│   └── README.md                    # Hardware specifications & verification report
 ├── near_field_demo/
 │   └── demo_50cm_perimeter.py       # Single-mic 50cm spatial gating simulator
 ├── oled_spectrum/
@@ -86,9 +93,18 @@ You can choose any of the options:
 │   └── test_inmp441_live.py         # Terminal VU meter
 ├── india_car_maintenance_research/
 │   └── car_maintenance_india_research_report.md # Indian automotive predictive AI report
-├── audio_recordings/                # Sample test audio recordings (WAV/MP3)
-└── esp32s3_mic_preamp.*             # KiCad schematic, PCB layout, BOM & DRC reports
+└── audio_recordings/                # Sample test audio recordings (WAV/MP3)
 ```
+
+---
+
+## 📐 Hardware Schematics & PCB (KiCad Package)
+
+The complete hardware package is available in the [`motopulse_kicad/`](./motopulse_kicad/) directory:
+- **Schematic:** [`motopulse_schematic.pdf`](./motopulse_kicad/motopulse_schematic.pdf) / [`motopulse.kicad_sch`](./motopulse_kicad/motopulse.kicad_sch) — Passes ERC with **0 errors, 0 warnings**.
+- **PCB Layout:** [`motopulse_pcb.pdf`](./motopulse_kicad/motopulse_pcb.pdf) / [`motopulse.kicad_pcb`](./motopulse_kicad/motopulse.kicad_pcb) — Passes DRC with **0 errors, 0 unconnected items**.
+- **Bill of Materials:** [`motopulse_bom.csv`](./motopulse_kicad/motopulse_bom.csv).
+- **Manufacturing Files:** [`motopulse_gerbers.zip`](./motopulse_kicad/motopulse_gerbers.zip) (Gerbers + Excellon drill files).
 
 ---
 

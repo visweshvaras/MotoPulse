@@ -1,0 +1,56 @@
+PCB statistics report
+=====================
+- Date: Wed 14 Oct 2026 12:56:43 PM IST
+- Project: motopulse
+- Board name: motopulse
+
+Board
+-----
+- Width: 100.0000 mm
+- Height: 95.0000 mm
+- Area: 9500.00 mm²
+- Front copper area: 8602.144 mm²
+- Back copper area: 8621.961 mm²
+- Min track clearance: 1.4500 mm
+- Min track width: 0.3500 mm
+- Min drill diameter: 0.4000 mm
+- Board stackup thickness: 1.6000 mm
+
+- Front footprint area: 633.107 mm²
+- Back footprint area: 208.911 mm²
+- Front component density: 6.66 %
+- Back component density: 2.20 %
+Pads
+----
+- Through hole: 54
+- SMD: 8
+- Connector: 0
+- NPTH: 4
+- Castellated: 0
+- Press-fit: 0
+
+Vias
+----
+- Through vias: 9
+- Blind vias: 0
+- Buried vias: 0
+- Micro vias: 0
+
+Components
+----------
+
+|              | Front Side | Back Side | Total |
+|--------------|------------|-----------|-------|
+|THT:          |          4 |         0 |     4 |
+|SMD:          |          4 |         0 |     4 |
+|Unspecified:  |          4 |         0 |     4 |
+|Total:        |         12 |         0 |    12 |
+
+Drill holes
+-----------
+
+| Count | Shape |    X Size |    Y Size | Plated | Via/Pad | Start Layer | Stop Layer |
+|-------|-------|-----------|-----------|--------|---------|-------------|------------|
+|    54 | Round | 1.0000 mm | 1.0000 mm |    PTH |     Pad |        F.Cu |       B.Cu |
+|     9 | Round | 0.4000 mm | 0.4000 mm |    PTH |     Via |        F.Cu |       B.Cu |
+|     4 | Round | 2.7000 mm | 2.7000 mm |   NPTH |     Pad |        F.Cu |       B.Cu |
