@@ -172,6 +172,11 @@ class TinyMLPredictiveEngine:
         elif len(pcm_16k) > 16000:
             pcm_16k = pcm_16k[-16000:]
 
+        # Peak normalize to [-0.95, 0.95] to prevent volume/distance bias matching training
+        max_val = np.max(np.abs(pcm_16k))
+        if max_val > 0.001:
+            pcm_16k = (pcm_16k / max_val) * 0.95
+
         frames = np.lib.stride_tricks.sliding_window_view(pcm_16k, self.frame_len)[::self.frame_step]
         windowed = frames * self.window_fn
         stft = np.fft.rfft(windowed, n=self.n_fft)
@@ -210,9 +215,13 @@ class TinyMLPredictiveEngine:
             self.interpreter.set_tensor(self.in_det["index"], q_in)
             self.interpreter.invoke()
             q_out = self.interpreter.get_tensor(self.out_det["index"])[0]
+            # Output from quantized TFLite is already softmax probability distribution
             raw_p = (q_out.astype(np.float32) - self.out_zero_point) * self.out_scale
-            exp_p = np.exp(raw_p - np.max(raw_p))
-            softmax_probs = exp_p / np.sum(exp_p)
+            raw_p = np.clip(raw_p, 0.0, 1.0)
+            if np.sum(raw_p) > 0:
+                softmax_probs = raw_p / np.sum(raw_p)
+            else:
+                softmax_probs = np.ones(len(self.class_names)) / len(self.class_names)
 
             pred_idx = int(np.argmax(softmax_probs))
             pred_class = self.class_names[pred_idx]
@@ -227,7 +236,14 @@ class TinyMLPredictiveEngine:
         # Calculate Prognostics & Forecasts
         prognosis = self._compute_prognosis(pred_class, conf, piezo_amp)
 
+        is_healthy = (pred_class == "normal_idle")
+        health_state = "GOOD" if is_healthy else "BAD"
+        problem_identified = "None (Optimal Acoustic Baseline)" if is_healthy else self.CLASS_LABELS.get(pred_class, pred_class.replace("_", " ").title())
+
         return {
+            "health_state": health_state,
+            "is_healthy": is_healthy,
+            "problem_identified": problem_identified,
             "predicted_class": pred_class,
             "predicted_label": self.CLASS_LABELS.get(pred_class, pred_class.replace("_", " ").title()),
             "confidence": round(conf, 1),

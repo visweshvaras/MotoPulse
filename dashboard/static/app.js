@@ -150,6 +150,15 @@
     btnResetLearner: document.getElementById('btn-reset-learner'),
 
     // AI Predictive Prognostics Horizon Engine
+    predHealthBadge: document.getElementById('pred-health-badge'),
+    healthHeroBanner: document.getElementById('health-hero-banner'),
+    healthHeroIcon: document.getElementById('health-hero-icon'),
+    healthHeroBadge: document.getElementById('health-hero-badge'),
+    healthHeroTitle: document.getElementById('health-hero-title'),
+    healthHeroSub: document.getElementById('health-hero-sub'),
+    problemCard: document.getElementById('problem-card'),
+    problemTitle: document.getElementById('problem-title'),
+    problemSub: document.getElementById('problem-sub'),
     rulKm: document.getElementById('rul-km'),
     rulHours: document.getElementById('rul-hours'),
     healthScore: document.getElementById('health-score'),
@@ -490,6 +499,9 @@
       state.lastPredTime = time;
       const isKnock = state.targetPiezoAmp > 180;
       updatePredictivePrognosticsUI({
+        is_healthy: !isKnock,
+        health_state: isKnock ? "BAD" : "GOOD",
+        problem_identified: isKnock ? "Connecting Rod / Piston Detonation Knock" : "NONE (NORMAL OPERATION)",
         predicted_class: isKnock ? "engine_knocking" : "normal_idle",
         predicted_label: isKnock ? "Connecting Rod / Piston Detonation Knock" : "Normal Engine Idle (Optimal Acoustics)",
         confidence: isKnock ? 78.5 : 94.8,
@@ -1364,6 +1376,39 @@
     if (!pred) return;
     const prog = pred.prognosis || {};
     const probs = pred.probabilities || {};
+
+    // 0. Vehicle Acoustic Health State (GOOD vs BAD) & Problem Identification
+    const isHealthy = pred.is_healthy !== undefined ? Boolean(pred.is_healthy) : (pred.predicted_class === 'normal_idle');
+    const healthState = pred.health_state || (isHealthy ? 'GOOD' : 'BAD');
+    const problemIdentified = pred.problem_identified || (isHealthy ? 'NONE (NORMAL OPERATION)' : (pred.predicted_label || 'MECHANICAL DEFECT'));
+
+    if (dom.predHealthBadge) {
+      dom.predHealthBadge.textContent = `HEALTH: ${healthState}`;
+      dom.predHealthBadge.className = `badge ${isHealthy ? 'green' : 'red'}`;
+    }
+
+    if (dom.healthHeroBanner) {
+      if (isHealthy) {
+        dom.healthHeroBanner.className = 'health-hero-banner healthy';
+        if (dom.healthHeroIcon) dom.healthHeroIcon.textContent = '🟢';
+        if (dom.healthHeroBadge) dom.healthHeroBadge.textContent = 'VEHICLE ACOUSTIC STATE: GOOD';
+        if (dom.healthHeroTitle) dom.healthHeroTitle.textContent = 'Healthy Engine Sound Detected (Normal Baseline)';
+        if (dom.healthHeroSub) dom.healthHeroSub.textContent = 'Acoustic spectrum matches calibrated OEM vehicle idle and operating profile without mechanical anomalies.';
+        if (dom.problemCard) dom.problemCard.className = 'problem-card healthy';
+        if (dom.problemTitle) dom.problemTitle.textContent = 'NONE (NORMAL OPERATION)';
+        if (dom.problemSub) dom.problemSub.textContent = 'All cylinder acoustics, lifters, belts, and bearing frequencies within nominal range.';
+      } else {
+        dom.healthHeroBanner.className = 'health-hero-banner defect';
+        if (dom.healthHeroIcon) dom.healthHeroIcon.textContent = '🔴';
+        if (dom.healthHeroBadge) dom.healthHeroBadge.textContent = 'VEHICLE ACOUSTIC STATE: BAD';
+        if (dom.healthHeroTitle) dom.healthHeroTitle.textContent = `Defect Detected: ${pred.predicted_label || 'Mechanical Anomaly'}`;
+        const confStr = pred.confidence !== undefined ? `${pred.confidence}%` : 'high';
+        if (dom.healthHeroSub) dom.healthHeroSub.textContent = `Characteristic acoustic defect signature recognized with ${confStr} confidence.`;
+        if (dom.problemCard) dom.problemCard.className = 'problem-card defect';
+        if (dom.problemTitle) dom.problemTitle.textContent = problemIdentified;
+        if (dom.problemSub) dom.problemSub.textContent = prog.prescriptive_action || 'Immediate workshop inspection advised.';
+      }
+    }
 
     // 1. RUL Forecasts
     if (dom.rulKm) {

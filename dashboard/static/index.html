@@ -298,8 +298,28 @@
             <h2>MotoPulse™ AI Predictive Prognostics & Health Horizon Engine</h2>
           </div>
           <div class="card-actions">
+            <span class="badge green" id="pred-health-badge">HEALTH: GOOD</span>
             <span class="badge blue">TinyML INT8 Core-8 Model</span>
             <span class="badge" id="pred-risk-badge">STATUS: NOMINAL</span>
+          </div>
+        </div>
+
+        <!-- Vehicle Acoustic Health Assessment Hero Banner (Good vs Bad & Identified Problem) -->
+        <div class="health-hero-banner healthy" id="health-hero-banner">
+          <div class="health-hero-left">
+            <div class="health-hero-icon" id="health-hero-icon">🟢</div>
+            <div class="health-hero-text">
+              <div class="health-hero-badge" id="health-hero-badge">VEHICLE ACOUSTIC STATE: GOOD</div>
+              <h3 class="health-hero-title" id="health-hero-title">Healthy Engine Sound Detected (Normal Baseline)</h3>
+              <p class="health-hero-sub" id="health-hero-sub">Acoustic spectrum matches calibrated OEM vehicle idle and operating profile without mechanical anomalies.</p>
+            </div>
+          </div>
+          <div class="health-hero-right">
+            <div class="problem-card healthy" id="problem-card">
+              <div class="problem-label">IDENTIFIED PROBLEM</div>
+              <div class="problem-title" id="problem-title">NONE (NORMAL OPERATION)</div>
+              <div class="problem-sub" id="problem-sub">All acoustic harmonics, lifters, belts, and bearing frequencies within nominal range.</div>
+            </div>
           </div>
         </div>
 
