@@ -291,9 +291,10 @@ static void oledDrawString(int x, int y, const char* str, uint8_t color) {
 }
 
 static void oledFlush() {
-    oledSendCmd(0x21); oledSendCmd(0); oledSendCmd(127);
-    oledSendCmd(0x22); oledSendCmd(0); oledSendCmd(7);
     for (int page = 0; page < 8; ++page) {
+        oledSendCmd(0xB0 + page);
+        oledSendCmd(0x02); // 2px column offset: centers SH1106 and fully compatible with SSD1306
+        oledSendCmd(0x10);
         Wire.beginTransmission(OLED_I2C_ADDR);
         Wire.write(0x40);
         Wire.write(&s_oled_buf[page * 128], 128);
@@ -311,12 +312,27 @@ static void initOLED() {
         delayMicroseconds(5);
     }
 
-    Wire.begin(OLED_SDA_PIN, OLED_SCL_PIN, 400000);
+    // 100 kHz I2C for rock-solid signal integrity
+    Wire.begin(OLED_SDA_PIN, OLED_SCL_PIN, 100000);
 
     const uint8_t init_seq[] = {
-        0xAE, 0xD5, 0x80, 0xA8, 63, 0xD3, 0x00, 0x40, 0x8D, 0x14,
-        0x20, 0x00, 0xA1, 0xC8, 0xDA, 0x12, 0x81, 0xFF, 0xD9, 0xF1,
-        0xDB, 0x40, 0xA4, 0xA6, 0xAF
+        0xAE,             // Display OFF
+        0xD5, 0x80,       // Clock divide
+        0xA8, 63,         // Multiplex 64
+        0xD3, 0x00,       // Offset 0
+        0x40,             // Start line 0
+        0x8D, 0x14,       // SSD1306 Charge Pump ON
+        0xAD, 0x8B,       // SH1106 DC-DC Converter ON
+        0x30, 0x33,       // SH1106 pump voltage
+        0xA1,             // Remap
+        0xC8,             // Scan direction
+        0xDA, 0x12,       // COM pins configuration
+        0x81, 0xFF,       // Contrast 100%
+        0xD9, 0xF1,       // Pre-charge
+        0xDB, 0x40,       // VCOMH
+        0xA4,             // Output follows RAM
+        0xA6,             // Normal display
+        0xAF              // Display ON
     };
     for (size_t i = 0; i < sizeof(init_seq); ++i) {
         oledSendCmd(init_seq[i]);

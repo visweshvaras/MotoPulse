@@ -666,9 +666,13 @@ for _ in range(9):
     scl_rec.value(1)
     time.sleep_us(5)
 
-# Fast 400 kHz I2C
-i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
+# 100 kHz I2C for rock-solid signal integrity on breadboards and jumper wires
+i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=100000)
+
+devs = i2c.scan()
 addr = 0x3C
+if 0x3D in devs and 0x3C not in devs:
+    addr = 0x3D
 
 temp = bytearray(2)
 temp[0] = 0x80
@@ -677,21 +681,42 @@ def write_cmd(c):
     try: i2c.writeto(addr, temp)
     except: pass
 
-# Init SSD1306 128x64 display
-for c in (0xAE, 0xD5, 0x80, 0xA8, 63, 0xD3, 0x00, 0x40, 0x8D, 0x14,
-          0x20, 0x00, 0xA1, 0xC8, 0xDA, 0x12, 0x81, 0xFF, 0xD9, 0xF1,
-          0xDB, 0x40, 0xA4, 0xA6, 0xAF):
+# Universal initialization: works on both SSD1306 and SH1106 (0.96" and 1.3" OLEDs)
+for c in (
+    0xAE,             # Display OFF
+    0xD5, 0x80,       # Set display clock divide
+    0xA8, 63,         # Multiplex ratio 64
+    0xD3, 0x00,       # Display offset 0
+    0x40,             # Start line 0
+    0x8D, 0x14,       # SSD1306 Charge Pump ON
+    0xAD, 0x8B,       # SH1106 DC-DC converter ON
+    0x30, 0x33,       # SH1106 Pump voltage
+    0xA1,             # Segment remap
+    0xC8,             # COM output scan direction
+    0xDA, 0x12,       # COM pins hardware configuration
+    0x81, 0xFF,       # Contrast control to maximum (100% brightness)
+    0xD9, 0xF1,       # Pre-charge period
+    0xDB, 0x40,       # VCOMH deselect level
+    0xA4,             # Output follows RAM content
+    0xA6,             # Normal display
+    0xAF              # Display ON
+):
     write_cmd(c)
 
 buf = bytearray(128 * 8)
 fb = framebuf.FrameBuffer(buf, 128, 64, framebuf.MONO_VLSB)
-write_list = [b"\\x40", buf]
 
+# Universal Page-by-Page Refresh (works on 100% of SSD1306 AND SH1106 controllers)
 def flush_display():
-    write_cmd(0x21); write_cmd(0); write_cmd(127)
-    write_cmd(0x22); write_cmd(0); write_cmd(7)
-    try: i2c.writevto(addr, write_list)
-    except: pass
+    for p in range(8):
+        write_cmd(0xB0 + p) # Page 0 to 7
+        write_cmd(0x02)      # Column low: 2px offset (centers on SH1106, harmless on SSD1306)
+        write_cmd(0x10)      # Column high: 0
+        page_slice = buf[p * 128 : (p + 1) * 128]
+        try:
+            i2c.writevto(addr, [b"\\x40", page_slice])
+        except Exception:
+            pass
 
 # 16kHz Stereo I2S INMP441 Microphone (SCK=4, WS=5, SD=6)
 audio = machine.I2S(
