@@ -210,11 +210,11 @@ def build_pcb():
     u1_p4  = pad_pos("U1", "4")   # GPIO4 (I2S_SCK)
     u1_p5  = pad_pos("U1", "5")   # GPIO5 (I2S_WS)
     u1_p6  = pad_pos("U1", "6")   # GPIO6 (I2S_SD)
+    u1_p12 = pad_pos("U1", "12")  # GPIO8 (I2C_SCL)
+    u1_p15 = pad_pos("U1", "15")  # GPIO9 (I2C_SDA)
     u1_p22 = pad_pos("U1", "22")  # GND
     u1_p25 = pad_pos("U1", "25")  # GND
     u1_p26 = pad_pos("U1", "26")  # GPIO1 (PIEZO_IN)
-    u1_p29 = pad_pos("U1", "29")  # GPIO41 (I2C_SCL)
-    u1_p30 = pad_pos("U1", "30")  # GPIO40 (I2C_SDA)
     u1_p44 = pad_pos("U1", "44")  # GND
 
     j1_p1  = pad_pos("J1", "1")
@@ -259,20 +259,24 @@ def build_pcb():
     add_via(board, (r1_p2[0], r1_p2[1] - 2.0), net_gnd)
     add_segment(board, r1_p2, (r1_p2[0], r1_p2[1] - 2.0), net_gnd, pcbnew.F_Cu, 0.35)
 
-    # B. I2C SIGNALS (U1 to J3 OLED)
-    # U1.29 (GPIO41 SCL) and U1.30 (GPIO40 SDA)
-    # Routes run smoothly in parallel on B.Cu without any track crossing:
+    # B. I2C SIGNALS (U1 GPIO8 & GPIO9 to J3 OLED)
+    # SCL: U1.12 (GPIO8) -> F.Cu south around U1 -> J3.3
+    # SDA: U1.15 (GPIO9) -> B.Cu south around U1 -> J3.4
     add_polyline(board, [
-        u1_p29,
-        (origin_x + 88.0, u1_p29[1]),
-        (origin_x + 88.0, j3_p3[1]),
+        u1_p12,
+        (origin_x + 48.5, u1_p12[1]),
+        (origin_x + 48.5, origin_y + 70.0),
+        (origin_x + 95.0, origin_y + 70.0),
+        (origin_x + 95.0, j3_p3[1]),
         j3_p3
-    ], net_scl, pcbnew.B_Cu, 0.35)
+    ], net_scl, pcbnew.F_Cu, 0.35)
 
     add_polyline(board, [
-        u1_p30,
-        (origin_x + 85.0, u1_p30[1]),
-        (origin_x + 85.0, j3_p4[1]),
+        u1_p15,
+        (origin_x + 47.0, u1_p15[1]),
+        (origin_x + 47.0, origin_y + 73.0),
+        (origin_x + 98.0, origin_y + 73.0),
+        (origin_x + 98.0, j3_p4[1]),
         j3_p4
     ], net_sda, pcbnew.B_Cu, 0.35)
 

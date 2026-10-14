@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/home/vishwa/Documents/hacktivate/motopulse_kicad/motopulse.kicad_sch")
-		(date "2026-10-14T18:51:57")
+		(date "2026-10-14T19:08:02")
 		(tool "Eeschema 10.0.6-10.0.6~ubuntu26.04.1")
 		(sheet
 			(number "1")
@@ -93,7 +93,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "77f60a09-8c77-4530-8f6d-8caebd904585")
+			(tstamps "e241f14e-984d-4966-b6b6-de1304fb8a27")
 			(units
 				(unit
 					(name "A")
@@ -159,7 +159,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "a1575c28-950b-44d6-9405-2a2b6ecb37ce")
+			(tstamps "bcb22127-8fb3-4024-8c3e-940c9642e547")
 			(units
 				(unit
 					(name "A")
@@ -225,7 +225,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "1b7235e6-e58b-437f-b2c4-9e1db21459b2")
+			(tstamps "83620d6a-3a3c-41c0-99d2-6ccca3b9a047")
 			(units
 				(unit
 					(name "A")
@@ -285,7 +285,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "eb13ae73-2452-43a9-8c39-a283afbc0564")
+			(tstamps "09c31844-2396-4b62-aaa1-10cbddd83838")
 			(units
 				(unit
 					(name "A")
@@ -339,7 +339,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "ac276294-172d-43de-b6ac-45358e56ebfd")
+			(tstamps "d81550e2-638d-493b-92a7-9fe13470103d")
 			(units
 				(unit
 					(name "A")
@@ -385,7 +385,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "ef66fa0d-576c-415a-ab71-97b50d5da689")
+			(tstamps "9db4d656-7e27-4bb9-ad2e-a96c1d82e631")
 			(units
 				(unit
 					(name "A")
@@ -999,8 +999,8 @@
 			)
 			(node
 				(ref "U1")
-				(pin "29")
-				(pinfunction "GPIO41_29")
+				(pin "12")
+				(pinfunction "GPIO8_12")
 				(pintype "bidirectional")
 			)
 		)
@@ -1016,8 +1016,8 @@
 			)
 			(node
 				(ref "U1")
-				(pin "30")
-				(pinfunction "GPIO40_30")
+				(pin "15")
+				(pinfunction "GPIO9_15")
 				(pintype "bidirectional")
 			)
 		)
@@ -1271,28 +1271,6 @@
 		)
 		(net
 			(code "18")
-			(name "unconnected-(U1-GPIO8-Pad12)")
-			(class "Default")
-			(node
-				(ref "U1")
-				(pin "12")
-				(pinfunction "GPIO8_12")
-				(pintype "bidirectional+no_connect")
-			)
-		)
-		(net
-			(code "19")
-			(name "unconnected-(U1-GPIO9-Pad15)")
-			(class "Default")
-			(node
-				(ref "U1")
-				(pin "15")
-				(pinfunction "GPIO9_15")
-				(pintype "bidirectional+no_connect")
-			)
-		)
-		(net
-			(code "20")
 			(name "unconnected-(U1-GPIO10-Pad16)")
 			(class "Default")
 			(node
@@ -1303,7 +1281,7 @@
 			)
 		)
 		(net
-			(code "21")
+			(code "19")
 			(name "unconnected-(U1-GPIO11-Pad17)")
 			(class "Default")
 			(node
@@ -1314,7 +1292,7 @@
 			)
 		)
 		(net
-			(code "22")
+			(code "20")
 			(name "unconnected-(U1-GPIO12-Pad18)")
 			(class "Default")
 			(node
@@ -1325,7 +1303,7 @@
 			)
 		)
 		(net
-			(code "23")
+			(code "21")
 			(name "unconnected-(U1-GPIO13-Pad19)")
 			(class "Default")
 			(node
@@ -1336,7 +1314,7 @@
 			)
 		)
 		(net
-			(code "24")
+			(code "22")
 			(name "unconnected-(U1-GPIO14-Pad20)")
 			(class "Default")
 			(node
@@ -1347,7 +1325,7 @@
 			)
 		)
 		(net
-			(code "25")
+			(code "23")
 			(name "unconnected-(U1-GPIO15-Pad8)")
 			(class "Default")
 			(node
@@ -1358,7 +1336,7 @@
 			)
 		)
 		(net
-			(code "26")
+			(code "24")
 			(name "unconnected-(U1-GPIO16-Pad9)")
 			(class "Default")
 			(node
@@ -1369,7 +1347,7 @@
 			)
 		)
 		(net
-			(code "27")
+			(code "25")
 			(name "unconnected-(U1-GPIO17-Pad10)")
 			(class "Default")
 			(node
@@ -1380,7 +1358,7 @@
 			)
 		)
 		(net
-			(code "28")
+			(code "26")
 			(name "unconnected-(U1-GPIO18-Pad11)")
 			(class "Default")
 			(node
@@ -1391,7 +1369,7 @@
 			)
 		)
 		(net
-			(code "29")
+			(code "27")
 			(name "unconnected-(U1-GPIO21-Pad21)")
 			(class "Default")
 			(node
@@ -1402,7 +1380,7 @@
 			)
 		)
 		(net
-			(code "30")
+			(code "28")
 			(name "unconnected-(U1-GPIO35_OPI-Pad35)")
 			(class "Default")
 			(node
@@ -1413,7 +1391,7 @@
 			)
 		)
 		(net
-			(code "31")
+			(code "29")
 			(name "unconnected-(U1-GPIO36_OPI-Pad34)")
 			(class "Default")
 			(node
@@ -1424,7 +1402,7 @@
 			)
 		)
 		(net
-			(code "32")
+			(code "30")
 			(name "unconnected-(U1-GPIO37_OPI-Pad33)")
 			(class "Default")
 			(node
@@ -1435,7 +1413,7 @@
 			)
 		)
 		(net
-			(code "33")
+			(code "31")
 			(name "unconnected-(U1-GPIO38-Pad32)")
 			(class "Default")
 			(node
@@ -1446,13 +1424,35 @@
 			)
 		)
 		(net
-			(code "34")
+			(code "32")
 			(name "unconnected-(U1-GPIO39-Pad31)")
 			(class "Default")
 			(node
 				(ref "U1")
 				(pin "31")
 				(pinfunction "GPIO39_31")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "33")
+			(name "unconnected-(U1-GPIO40-Pad30)")
+			(class "Default")
+			(node
+				(ref "U1")
+				(pin "30")
+				(pinfunction "GPIO40_30")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "34")
+			(name "unconnected-(U1-GPIO41-Pad29)")
+			(class "Default")
+			(node
+				(ref "U1")
+				(pin "29")
+				(pinfunction "GPIO41_29")
 				(pintype "bidirectional+no_connect")
 			)
 		)

@@ -364,8 +364,28 @@ def build_schematic():
     wires_text.append(format_wire(p6_x, p6_y, p6_x - 10.16, p6_y))
     labels_text.append(format_label("I2S_SD", p6_x - 10.16, p6_y, angle=180))
 
-    # Pins 7 to 21: Unused Left GPIOs -> No Connects
-    for pin_idx in range(7, 22):
+    # Pins 7 to 11: GPIO7, GPIO15, GPIO16, GPIO17, GPIO18 -> No Connects
+    for pin_idx in range(7, 12):
+        px, py = u1_left_pin_pos(pin_idx)
+        no_connects_text.append(format_no_connect(px, py))
+
+    # Pin 12: GPIO8 -> I2C_SCL (OLED SCL)
+    p12_x, p12_y = u1_left_pin_pos(12)
+    wires_text.append(format_wire(p12_x, p12_y, p12_x - 10.16, p12_y))
+    labels_text.append(format_label("I2C_SCL", p12_x - 10.16, p12_y, angle=180))
+
+    # Pins 13, 14: GPIO3, GPIO46 -> No Connects
+    for pin_idx in [13, 14]:
+        px, py = u1_left_pin_pos(pin_idx)
+        no_connects_text.append(format_no_connect(px, py))
+
+    # Pin 15: GPIO9 -> I2C_SDA (OLED SDA)
+    p15_x, p15_y = u1_left_pin_pos(15)
+    wires_text.append(format_wire(p15_x, p15_y, p15_x - 10.16, p15_y))
+    labels_text.append(format_label("I2C_SDA", p15_x - 10.16, p15_y, angle=180))
+
+    # Pins 16 to 21: GPIO10, GPIO11, GPIO12, GPIO13, GPIO14, GPIO21 -> No Connects
+    for pin_idx in range(16, 22):
         px, py = u1_left_pin_pos(pin_idx)
         no_connects_text.append(format_no_connect(px, py))
 
@@ -395,23 +415,8 @@ def build_schematic():
     wires_text.append(format_wire(p26_x, p26_y, p26_x + 10.16, p26_y))
     labels_text.append(format_label("PIEZO_IN", p26_x + 10.16, p26_y, angle=0))
 
-    # Pins 27, 28: GPIO2, GPIO42 -> No Connect
-    for pin_idx in [27, 28]:
-        px, py = u1_right_pin_pos(pin_idx)
-        no_connects_text.append(format_no_connect(px, py))
-
-    # Pin 29: GPIO41 -> I2C_SCL
-    p29_x, p29_y = u1_right_pin_pos(29)
-    wires_text.append(format_wire(p29_x, p29_y, p29_x + 10.16, p29_y))
-    labels_text.append(format_label("I2C_SCL", p29_x + 10.16, p29_y, angle=0))
-
-    # Pin 30: GPIO40 -> I2C_SDA
-    p30_x, p30_y = u1_right_pin_pos(30)
-    wires_text.append(format_wire(p30_x, p30_y, p30_x + 10.16, p30_y))
-    labels_text.append(format_label("I2C_SDA", p30_x + 10.16, p30_y, angle=0))
-
-    # Pins 31 to 43: Unused Right GPIOs / PSRAM / USB -> No Connects
-    for pin_idx in range(31, 44):
+    # Pins 27 to 43: Unused Right GPIOs / PSRAM / USB -> No Connects
+    for pin_idx in range(27, 44):
         px, py = u1_right_pin_pos(pin_idx)
         no_connects_text.append(format_no_connect(px, py))
 
