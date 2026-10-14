@@ -65,9 +65,9 @@ audio = machine.I2S(
     sd=machine.Pin(6),
     mode=machine.I2S.RX,
     bits=32,
-    format=machine.I2S.MONO,
+    format=machine.I2S.STEREO,
     rate=16000,
-    ibuf=2048
+    ibuf=4096
 )
 
 # Splash
@@ -79,14 +79,16 @@ oled.text('CALIBRATING...', 12, 44, 1)
 oled.show()
 
 # 1. Background Noise Auto-Calibration (1.5 seconds)
-buf_in = bytearray(512) # 128 samples
+buf_in = bytearray(512) # 64 stereo frames
 ambient_energy = 0
 calib_count = 30
 for _ in range(calib_count):
     audio.readinto(buf_in)
     raw = struct.unpack('<128i', buf_in)
-    s16 = [s >> 14 for s in raw]
-    p2p = max(s16) - min(s16)
+    samples = [raw[i] >> 16 for i in range(0, 128, 2)]
+    mean_val = sum(samples) // 64
+    ac = [s - mean_val for s in samples]
+    p2p = max(ac) - min(ac)
     ambient_energy += p2p
 ambient_floor = max(180, ambient_energy // calib_count)
 
@@ -111,15 +113,15 @@ trigger_counter = 0
 while True:
     audio.readinto(buf_in)
     raw = struct.unpack('<128i', buf_in)
-    s16 = [s >> 14 for s in raw]
-    mean_val = sum(s16) // 128
-    ac = [s - mean_val for s in s16]
+    samples = [raw[i] >> 16 for i in range(0, 128, 2)]
+    mean_val = sum(samples) // 64
+    ac = [s - mean_val for s in samples]
     
     p2p = max(ac) - min(ac)
     
     # Calculate RMS
     rms_sum = sum(x * x for x in ac)
-    rms = int(math.sqrt(rms_sum // 128))
+    rms = int(math.sqrt(rms_sum // 64))
 
     # Evaluate 50cm Acoustic Gate
     is_near = (p2p >= NEAR_THRESHOLD)

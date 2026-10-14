@@ -60,9 +60,9 @@ audio = machine.I2S(
     sd=machine.Pin(6),
     mode=machine.I2S.RX,
     bits=32,
-    format=machine.I2S.MONO,
+    format=machine.I2S.STEREO,
     rate=16000,
-    ibuf=2048
+    ibuf=4096
 )
 
 # Splash screen
@@ -84,18 +84,18 @@ sin_lut = [int(math.sin(2 * math.pi * k / N) * 256) for k in range(N)]
 peak_bars = [0] * NUM_BANDS
 smooth_bars = [0] * NUM_BANDS
 
-# Audio buffer for 64 32-bit samples (256 bytes)
-buf_in = bytearray(256)
+# Audio buffer for 64 stereo frames (512 bytes)
+buf_in = bytearray(512)
 
 print("SPECTRUM_RUNNING")
 
 while True:
     # Read chunk from microphone
     audio.readinto(buf_in)
-    raw = struct.unpack('<64i', buf_in)
+    raw = struct.unpack('<128i', buf_in)
     
-    # Extract AC audio signal
-    samples = [s >> 14 for s in raw]
+    # Extract clean Left channel (Mic 1) top 16 bits
+    samples = [raw[i] >> 16 for i in range(0, 128, 2)]
     mean_val = sum(samples) // 64
     ac = [s - mean_val for s in samples]
 
