@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "motopulse")(type "KiCad")(uri "${KIPRJMOD}/motopulse.pretty")(options "")(descr "MotoPulse Project Footprints"))
+)

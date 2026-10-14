@@ -2,29 +2,29 @@
 	(version "E")
 	(design
 		(source "/home/vishwa/Documents/hacktivate/motopulse_kicad/motopulse.kicad_sch")
-		(date "2026-10-14T12:35:30")
+		(date "2026-10-14T18:25:33")
 		(tool "Eeschema 10.0.6-10.0.6~ubuntu26.04.1")
 		(sheet
 			(number "1")
 			(name "/")
 			(tstamps "/")
 			(title_block
-				(title "MotoPulse: Automotive Acoustic Predictive Maintenance")
-				(company "IEEE RUAS - Hacktivate 2026")
-				(rev "2.0")
+				(title "MotoPulse Unified ESP32-S3 Acoustic & Vibration Motherboard")
+				(company "MotoPulse Team")
+				(rev "v2.0-clean")
 				(date "2026-10-14")
 				(source "motopulse.kicad_sch")
 				(comment
 					(number "1")
-					(value "ESP32-S3 + INMP441 Digital MEMS Microphone + SSD1306 OLED")
+					(value "Dual INMP441 MEMS Mics (40.0mm Baseline) + 0.96 OLED + Piezo + 1M Resistor")
 				)
 				(comment
 					(number "2")
-					(value "I2S Digital Audio + I2C Real-Time Spectrum Hardware System")
+					(value "Pure Direct-Connect Architecture - No Unnecessary Capacitors")
 				)
 				(comment
 					(number "3")
-					(value "Author: Visweshwara S & Team")
+					(value "")
 				)
 				(comment
 					(number "4")
@@ -55,344 +55,8 @@
 	)
 	(components
 		(comp
-			(ref "C1")
-			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(fields
-				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description")
-				)
-			)
-			(libsource
-				(lib "Device")
-				(part "C")
-				(description "Unpolarized capacitor")
-			)
-			(property
-				(name "Sheetname")
-				(value "motopulse")
-			)
-			(property
-				(name "Sheetfile")
-				(value "motopulse.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "cap capacitor")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "C_*")
-			)
-			(sheetpath
-				(names "/")
-				(tstamps "/")
-			)
-			(tstamps "13518d58-b251-4925-8d2d-4b007389e76c")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-						(pin
-							(num "2")
-						)
-					)
-				)
-			)
-		)
-		(comp
-			(ref "C2")
-			(value "100nF")
-			(footprint "Capacitor_SMD:C_0805_2012Metric")
-			(fields
-				(field
-					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description")
-				)
-			)
-			(libsource
-				(lib "Device")
-				(part "C")
-				(description "Unpolarized capacitor")
-			)
-			(property
-				(name "Sheetname")
-				(value "motopulse")
-			)
-			(property
-				(name "Sheetfile")
-				(value "motopulse.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "cap capacitor")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "C_*")
-			)
-			(sheetpath
-				(names "/")
-				(tstamps "/")
-			)
-			(tstamps "164d224f-e77c-47b6-bab0-264fd445f056")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-						(pin
-							(num "2")
-						)
-					)
-				)
-			)
-		)
-		(comp
 			(ref "J1")
-			(value "ESP32-S3_Left_Header")
-			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x22_P2.54mm_Vertical")
-			(fields
-				(field
-					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x22_P2.54mm_Vertical")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description")
-				)
-			)
-			(libsource
-				(lib "Connector_Generic")
-				(part "Conn_01x22")
-				(description "Generic connector, single row, 01x22, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			)
-			(property
-				(name "Sheetname")
-				(value "motopulse")
-			)
-			(property
-				(name "Sheetfile")
-				(value "motopulse.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "connector")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Connector*:*_1x??_*")
-			)
-			(sheetpath
-				(names "/")
-				(tstamps "/")
-			)
-			(tstamps "04ce2912-cc93-46cd-998c-f290df97fb03")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-						(pin
-							(num "2")
-						)
-						(pin
-							(num "3")
-						)
-						(pin
-							(num "4")
-						)
-						(pin
-							(num "5")
-						)
-						(pin
-							(num "6")
-						)
-						(pin
-							(num "7")
-						)
-						(pin
-							(num "8")
-						)
-						(pin
-							(num "9")
-						)
-						(pin
-							(num "10")
-						)
-						(pin
-							(num "11")
-						)
-						(pin
-							(num "12")
-						)
-						(pin
-							(num "13")
-						)
-						(pin
-							(num "14")
-						)
-						(pin
-							(num "15")
-						)
-						(pin
-							(num "16")
-						)
-						(pin
-							(num "17")
-						)
-						(pin
-							(num "18")
-						)
-						(pin
-							(num "19")
-						)
-						(pin
-							(num "20")
-						)
-						(pin
-							(num "21")
-						)
-						(pin
-							(num "22")
-						)
-					)
-				)
-			)
-		)
-		(comp
-			(ref "J2")
-			(value "ESP32-S3_Right_Header")
-			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x22_P2.54mm_Vertical")
-			(fields
-				(field
-					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x22_P2.54mm_Vertical")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description")
-				)
-			)
-			(libsource
-				(lib "Connector_Generic")
-				(part "Conn_01x22")
-				(description "Generic connector, single row, 01x22, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			)
-			(property
-				(name "Sheetname")
-				(value "motopulse")
-			)
-			(property
-				(name "Sheetfile")
-				(value "motopulse.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "connector")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "Connector*:*_1x??_*")
-			)
-			(sheetpath
-				(names "/")
-				(tstamps "/")
-			)
-			(tstamps "4b60d101-0735-4acc-b1eb-0b1bd3c784d9")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-						(pin
-							(num "2")
-						)
-						(pin
-							(num "3")
-						)
-						(pin
-							(num "4")
-						)
-						(pin
-							(num "5")
-						)
-						(pin
-							(num "6")
-						)
-						(pin
-							(num "7")
-						)
-						(pin
-							(num "8")
-						)
-						(pin
-							(num "9")
-						)
-						(pin
-							(num "10")
-						)
-						(pin
-							(num "11")
-						)
-						(pin
-							(num "12")
-						)
-						(pin
-							(num "13")
-						)
-						(pin
-							(num "14")
-						)
-						(pin
-							(num "15")
-						)
-						(pin
-							(num "16")
-						)
-						(pin
-							(num "17")
-						)
-						(pin
-							(num "18")
-						)
-						(pin
-							(num "19")
-						)
-						(pin
-							(num "20")
-						)
-						(pin
-							(num "21")
-						)
-						(pin
-							(num "22")
-						)
-					)
-				)
-			)
-		)
-		(comp
-			(ref "J3")
-			(value "INMP441_Breakout")
+			(value "INMP441_Left")
 			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
 			(fields
 				(field
@@ -429,7 +93,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "c441179a-32a4-483b-ac0f-36e5fe6055f5")
+			(tstamps "fdee95ef-942f-4a4a-9104-692f7f1e8352")
 			(units
 				(unit
 					(name "A")
@@ -457,12 +121,78 @@
 			)
 		)
 		(comp
-			(ref "J4")
-			(value "OLED_0.96_I2C")
-			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
+			(ref "J2")
+			(value "INMP441_Right")
+			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
 			(fields
 				(field
-					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
+					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Connector_Generic")
+				(part "Conn_01x06")
+				(description "Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "Sheetname")
+				(value "motopulse")
+			)
+			(property
+				(name "Sheetfile")
+				(value "motopulse.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "a30a2a08-4ee6-4e9f-9a12-2289fe93f6b8")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J3")
+			(value "SSD1306_OLED")
+			(footprint "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical")
+			(fields
+				(field
+					(name "Footprint") "Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical")
 				(field
 					(name "Datasheet")
 				)
@@ -495,7 +225,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d86efc0d-58d2-49a1-93d2-3c76a2da6a96")
+			(tstamps "33f626ba-a88d-4dc9-a2f5-143eae52c86c")
 			(units
 				(unit
 					(name "A")
@@ -517,12 +247,12 @@
 			)
 		)
 		(comp
-			(ref "R1")
-			(value "4.7k")
-			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(ref "J4")
+			(value "Piezo_Sensor")
+			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
 			(fields
 				(field
-					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
 				(field
 					(name "Datasheet")
 				)
@@ -531,9 +261,9 @@
 				)
 			)
 			(libsource
-				(lib "Device")
-				(part "R")
-				(description "Resistor")
+				(lib "Connector_Generic")
+				(part "Conn_01x02")
+				(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
 			)
 			(property
 				(name "Sheetname")
@@ -545,17 +275,17 @@
 			)
 			(property
 				(name "ki_keywords")
-				(value "R res resistor")
+				(value "connector")
 			)
 			(property
 				(name "ki_fp_filters")
-				(value "R_*")
+				(value "Connector*:*_1x??_*")
 			)
 			(sheetpath
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "5724e519-0860-4093-bcaa-df3a8105bfc1")
+			(tstamps "40c0ce07-8659-4bb0-8d77-fc9535e59cf1")
 			(units
 				(unit
 					(name "A")
@@ -571,8 +301,8 @@
 			)
 		)
 		(comp
-			(ref "R2")
-			(value "4.7k")
+			(ref "R1")
+			(value "1.0M")
 			(footprint "Resistor_SMD:R_0805_2012Metric")
 			(fields
 				(field
@@ -609,7 +339,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "a1724b1a-f906-440c-969c-35968496a289")
+			(tstamps "f22468b3-97b0-4376-8b1c-bd2705a94ea7")
 			(units
 				(unit
 					(name "A")
@@ -624,10 +354,216 @@
 				)
 			)
 		)
+		(comp
+			(ref "U1")
+			(value "ESP32-S3-DevKitC-1")
+			(footprint "motopulse:ESP32-S3-DevKitC-1")
+			(fields
+				(field
+					(name "Footprint") "motopulse:ESP32-S3-DevKitC-1")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "motopulse")
+				(part "ESP32-S3-DevKitC-1")
+				(description "ESP32-S3-DevKitC-1 Development Board, 44 pins (2x22 headers)")
+			)
+			(property
+				(name "Sheetname")
+				(value "motopulse")
+			)
+			(property
+				(name "Sheetfile")
+				(value "motopulse.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "1c4b4c70-1dea-4938-b5b9-c77ff030a94e")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "9")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "11")
+						)
+						(pin
+							(num "12")
+						)
+						(pin
+							(num "13")
+						)
+						(pin
+							(num "14")
+						)
+						(pin
+							(num "15")
+						)
+						(pin
+							(num "16")
+						)
+						(pin
+							(num "17")
+						)
+						(pin
+							(num "18")
+						)
+						(pin
+							(num "19")
+						)
+						(pin
+							(num "20")
+						)
+						(pin
+							(num "21")
+						)
+						(pin
+							(num "22")
+						)
+						(pin
+							(num "23")
+						)
+						(pin
+							(num "24")
+						)
+						(pin
+							(num "25")
+						)
+						(pin
+							(num "26")
+						)
+						(pin
+							(num "27")
+						)
+						(pin
+							(num "28")
+						)
+						(pin
+							(num "29")
+						)
+						(pin
+							(num "30")
+						)
+						(pin
+							(num "31")
+						)
+						(pin
+							(num "32")
+						)
+						(pin
+							(num "33")
+						)
+						(pin
+							(num "34")
+						)
+						(pin
+							(num "35")
+						)
+						(pin
+							(num "36")
+						)
+						(pin
+							(num "37")
+						)
+						(pin
+							(num "38")
+						)
+						(pin
+							(num "39")
+						)
+						(pin
+							(num "40")
+						)
+						(pin
+							(num "41")
+						)
+						(pin
+							(num "42")
+						)
+						(pin
+							(num "43")
+						)
+						(pin
+							(num "44")
+						)
+					)
+				)
+			)
+		)
 	)
 	(groups)
 	(variants)
 	(libparts
+		(libpart
+			(lib "Connector_Generic")
+			(part "Conn_01x02")
+			(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x02")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "Pin_1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "Pin_2")
+					(type "passive")
+				)
+			)
+		)
 		(libpart
 			(lib "Connector_Generic")
 			(part "Conn_01x04")
@@ -727,174 +663,6 @@
 			)
 		)
 		(libpart
-			(lib "Connector_Generic")
-			(part "Conn_01x22")
-			(description "Generic connector, single row, 01x22, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			(footprints
-				(fp "Connector*:*_1x??_*")
-			)
-			(fields
-				(field
-					(name "Reference") "J")
-				(field
-					(name "Value") "Conn_01x22")
-				(field
-					(name "Footprint")
-				)
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "Generic connector, single row, 01x22, script generated (kicad-library-utils/schlib/autogen/connector/)")
-			)
-			(pins
-				(pin
-					(num "1")
-					(name "Pin_1")
-					(type "passive")
-				)
-				(pin
-					(num "2")
-					(name "Pin_2")
-					(type "passive")
-				)
-				(pin
-					(num "3")
-					(name "Pin_3")
-					(type "passive")
-				)
-				(pin
-					(num "4")
-					(name "Pin_4")
-					(type "passive")
-				)
-				(pin
-					(num "5")
-					(name "Pin_5")
-					(type "passive")
-				)
-				(pin
-					(num "6")
-					(name "Pin_6")
-					(type "passive")
-				)
-				(pin
-					(num "7")
-					(name "Pin_7")
-					(type "passive")
-				)
-				(pin
-					(num "8")
-					(name "Pin_8")
-					(type "passive")
-				)
-				(pin
-					(num "9")
-					(name "Pin_9")
-					(type "passive")
-				)
-				(pin
-					(num "10")
-					(name "Pin_10")
-					(type "passive")
-				)
-				(pin
-					(num "11")
-					(name "Pin_11")
-					(type "passive")
-				)
-				(pin
-					(num "12")
-					(name "Pin_12")
-					(type "passive")
-				)
-				(pin
-					(num "13")
-					(name "Pin_13")
-					(type "passive")
-				)
-				(pin
-					(num "14")
-					(name "Pin_14")
-					(type "passive")
-				)
-				(pin
-					(num "15")
-					(name "Pin_15")
-					(type "passive")
-				)
-				(pin
-					(num "16")
-					(name "Pin_16")
-					(type "passive")
-				)
-				(pin
-					(num "17")
-					(name "Pin_17")
-					(type "passive")
-				)
-				(pin
-					(num "18")
-					(name "Pin_18")
-					(type "passive")
-				)
-				(pin
-					(num "19")
-					(name "Pin_19")
-					(type "passive")
-				)
-				(pin
-					(num "20")
-					(name "Pin_20")
-					(type "passive")
-				)
-				(pin
-					(num "21")
-					(name "Pin_21")
-					(type "passive")
-				)
-				(pin
-					(num "22")
-					(name "Pin_22")
-					(type "passive")
-				)
-			)
-		)
-		(libpart
-			(lib "Device")
-			(part "C")
-			(description "Unpolarized capacitor")
-			(footprints
-				(fp "C_*")
-			)
-			(fields
-				(field
-					(name "Reference") "C")
-				(field
-					(name "Value") "C")
-				(field
-					(name "Footprint")
-				)
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description") "Unpolarized capacitor")
-			)
-			(pins
-				(pin
-					(num "1")
-					(name "")
-					(type "passive")
-				)
-				(pin
-					(num "2")
-					(name "")
-					(type "passive")
-				)
-			)
-		)
-		(libpart
 			(lib "Device")
 			(part "R")
 			(description "Resistor")
@@ -928,6 +696,246 @@
 				)
 			)
 		)
+		(libpart
+			(lib "motopulse")
+			(part "ESP32-S3-DevKitC-1")
+			(description "ESP32-S3-DevKitC-1 Development Board, 44 pins (2x22 headers)")
+			(docs "https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1.html")
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "ESP32-S3-DevKitC-1")
+				(field
+					(name "Footprint") "motopulse:ESP32-S3-DevKitC-1")
+				(field
+					(name "Datasheet") "https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1.html")
+				(field
+					(name "Description") "ESP32-S3-DevKitC-1 Development Board, 44 pins (2x22 headers)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "3V3")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "3V3")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "EN")
+					(type "input")
+				)
+				(pin
+					(num "4")
+					(name "GPIO4")
+					(type "bidirectional")
+				)
+				(pin
+					(num "5")
+					(name "GPIO5")
+					(type "bidirectional")
+				)
+				(pin
+					(num "6")
+					(name "GPIO6")
+					(type "bidirectional")
+				)
+				(pin
+					(num "7")
+					(name "GPIO7")
+					(type "bidirectional")
+				)
+				(pin
+					(num "8")
+					(name "GPIO15")
+					(type "bidirectional")
+				)
+				(pin
+					(num "9")
+					(name "GPIO16")
+					(type "bidirectional")
+				)
+				(pin
+					(num "10")
+					(name "GPIO17")
+					(type "bidirectional")
+				)
+				(pin
+					(num "11")
+					(name "GPIO18")
+					(type "bidirectional")
+				)
+				(pin
+					(num "12")
+					(name "GPIO8")
+					(type "bidirectional")
+				)
+				(pin
+					(num "13")
+					(name "GPIO19")
+					(type "bidirectional")
+				)
+				(pin
+					(num "14")
+					(name "GPIO20")
+					(type "bidirectional")
+				)
+				(pin
+					(num "15")
+					(name "GPIO3")
+					(type "bidirectional")
+				)
+				(pin
+					(num "16")
+					(name "GPIO46")
+					(type "bidirectional")
+				)
+				(pin
+					(num "17")
+					(name "GPIO9")
+					(type "bidirectional")
+				)
+				(pin
+					(num "18")
+					(name "GPIO10")
+					(type "bidirectional")
+				)
+				(pin
+					(num "19")
+					(name "GPIO11")
+					(type "bidirectional")
+				)
+				(pin
+					(num "20")
+					(name "GPIO12")
+					(type "bidirectional")
+				)
+				(pin
+					(num "21")
+					(name "GPIO13")
+					(type "bidirectional")
+				)
+				(pin
+					(num "22")
+					(name "GPIO14")
+					(type "bidirectional")
+				)
+				(pin
+					(num "23")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "24")
+					(name "GPIO1")
+					(type "bidirectional")
+				)
+				(pin
+					(num "25")
+					(name "GPIO2")
+					(type "bidirectional")
+				)
+				(pin
+					(num "26")
+					(name "GPIO42")
+					(type "bidirectional")
+				)
+				(pin
+					(num "27")
+					(name "GPIO41")
+					(type "bidirectional")
+				)
+				(pin
+					(num "28")
+					(name "GPIO40")
+					(type "bidirectional")
+				)
+				(pin
+					(num "29")
+					(name "GPIO39")
+					(type "bidirectional")
+				)
+				(pin
+					(num "30")
+					(name "GPIO38")
+					(type "bidirectional")
+				)
+				(pin
+					(num "31")
+					(name "GPIO37")
+					(type "bidirectional")
+				)
+				(pin
+					(num "32")
+					(name "GPIO36")
+					(type "bidirectional")
+				)
+				(pin
+					(num "33")
+					(name "GPIO35")
+					(type "bidirectional")
+				)
+				(pin
+					(num "34")
+					(name "GPIO0")
+					(type "bidirectional")
+				)
+				(pin
+					(num "35")
+					(name "GPIO45")
+					(type "bidirectional")
+				)
+				(pin
+					(num "36")
+					(name "GPIO48")
+					(type "bidirectional")
+				)
+				(pin
+					(num "37")
+					(name "GPIO47")
+					(type "bidirectional")
+				)
+				(pin
+					(num "38")
+					(name "GPIO21")
+					(type "bidirectional")
+				)
+				(pin
+					(num "39")
+					(name "GPIO14")
+					(type "bidirectional")
+				)
+				(pin
+					(num "40")
+					(name "GPIO13")
+					(type "bidirectional")
+				)
+				(pin
+					(num "41")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "42")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "43")
+					(name "5V")
+					(type "power_in")
+				)
+				(pin
+					(num "44")
+					(name "GND")
+					(type "power_in")
+				)
+			)
+		)
 	)
 	(libraries
 		(library
@@ -938,6 +946,10 @@
 			(logical "Device")
 			(uri "${KICAD10_SYMBOL_DIR}/Device.kicad_sym")
 		)
+		(library
+			(logical "motopulse")
+			(uri "${KIPRJMOD}/motopulse.kicad_sym")
+		)
 	)
 	(nets
 		(net
@@ -945,42 +957,34 @@
 			(name "+3.3V")
 			(class "Default")
 			(node
-				(ref "C1")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
-				(ref "C2")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
 				(ref "J1")
 				(pin "1")
 				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
+				(ref "J2")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "6")
+				(pinfunction "Pin_6_6")
+				(pintype "passive")
+			)
+			(node
 				(ref "J3")
-				(pin "1")
-				(pinfunction "Pin_1_1")
+				(pin "2")
+				(pinfunction "Pin_2_2")
 				(pintype "passive")
 			)
 			(node
-				(ref "J4")
+				(ref "U1")
 				(pin "1")
-				(pinfunction "Pin_1_1")
-				(pintype "passive")
-			)
-			(node
-				(ref "R1")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
-				(ref "R2")
-				(pin "1")
-				(pintype "passive")
+				(pinfunction "3V3_1")
+				(pintype "power_in")
 			)
 		)
 		(net
@@ -988,21 +992,16 @@
 			(name "/I2C_SCL")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "14")
-				(pinfunction "Pin_14_14")
-				(pintype "passive")
-			)
-			(node
-				(ref "J4")
+				(ref "J3")
 				(pin "3")
 				(pinfunction "Pin_3_3")
 				(pintype "passive")
 			)
 			(node
-				(ref "R1")
-				(pin "2")
-				(pintype "passive")
+				(ref "U1")
+				(pin "27")
+				(pinfunction "GPIO41_27")
+				(pintype "bidirectional")
 			)
 		)
 		(net
@@ -1010,21 +1009,16 @@
 			(name "/I2C_SDA")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "15")
-				(pinfunction "Pin_15_15")
-				(pintype "passive")
-			)
-			(node
-				(ref "J4")
+				(ref "J3")
 				(pin "4")
 				(pinfunction "Pin_4_4")
 				(pintype "passive")
 			)
 			(node
-				(ref "R2")
-				(pin "2")
-				(pintype "passive")
+				(ref "U1")
+				(pin "28")
+				(pinfunction "GPIO40_28")
+				(pintype "bidirectional")
 			)
 		)
 		(net
@@ -1033,15 +1027,21 @@
 			(class "Default")
 			(node
 				(ref "J1")
-				(pin "6")
-				(pinfunction "Pin_6_6")
-				(pintype "passive")
-			)
-			(node
-				(ref "J3")
 				(pin "4")
 				(pinfunction "Pin_4_4")
 				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "4")
+				(pinfunction "Pin_4_4")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "4")
+				(pinfunction "GPIO4_4")
+				(pintype "bidirectional")
 			)
 		)
 		(net
@@ -1050,15 +1050,21 @@
 			(class "Default")
 			(node
 				(ref "J1")
-				(pin "8")
-				(pinfunction "Pin_8_8")
-				(pintype "passive")
-			)
-			(node
-				(ref "J3")
 				(pin "3")
 				(pinfunction "Pin_3_3")
 				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "3")
+				(pinfunction "Pin_3_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "6")
+				(pinfunction "GPIO6_6")
+				(pintype "bidirectional")
 			)
 		)
 		(net
@@ -1067,53 +1073,71 @@
 			(class "Default")
 			(node
 				(ref "J1")
-				(pin "7")
-				(pinfunction "Pin_7_7")
-				(pintype "passive")
-			)
-			(node
-				(ref "J3")
 				(pin "5")
 				(pinfunction "Pin_5_5")
 				(pintype "passive")
 			)
+			(node
+				(ref "J2")
+				(pin "5")
+				(pinfunction "Pin_5_5")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "5")
+				(pinfunction "GPIO5_5")
+				(pintype "bidirectional")
+			)
 		)
 		(net
 			(code "7")
-			(name "GND")
+			(name "/PIEZO_IN")
 			(class "Default")
 			(node
-				(ref "C1")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "C2")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "J1")
-				(pin "13")
-				(pinfunction "Pin_13_13")
-				(pintype "passive")
-			)
-			(node
-				(ref "J2")
+				(ref "J4")
 				(pin "1")
 				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
-				(ref "J3")
+				(ref "R1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "24")
+				(pinfunction "GPIO1_24")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "8")
+			(name "GND")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "6")
+				(pinfunction "Pin_6_6")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
 				(pin "2")
 				(pinfunction "Pin_2_2")
 				(pintype "passive")
 			)
 			(node
 				(ref "J3")
-				(pin "6")
-				(pinfunction "Pin_6_6")
+				(pin "1")
+				(pinfunction "Pin_1_1")
 				(pintype "passive")
 			)
 			(node
@@ -1122,401 +1146,397 @@
 				(pinfunction "Pin_2_2")
 				(pintype "passive")
 			)
-		)
-		(net
-			(code "8")
-			(name "unconnected-(J1-Pin_2-Pad2)")
-			(class "Default")
 			(node
-				(ref "J1")
+				(ref "R1")
 				(pin "2")
-				(pinfunction "Pin_2_2")
-				(pintype "passive+no_connect")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "23")
+				(pinfunction "GND_23")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U1")
+				(pin "41")
+				(pinfunction "GND_41")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U1")
+				(pin "42")
+				(pinfunction "GND_42")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U1")
+				(pin "44")
+				(pinfunction "GND_44")
+				(pintype "power_in")
 			)
 		)
 		(net
 			(code "9")
-			(name "unconnected-(J1-Pin_3-Pad3)")
+			(name "unconnected-(U1-3V3-Pad2)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "3")
-				(pinfunction "Pin_3_3")
+				(ref "U1")
+				(pin "2")
+				(pinfunction "3V3_2")
 				(pintype "passive+no_connect")
 			)
 		)
 		(net
 			(code "10")
-			(name "unconnected-(J1-Pin_4-Pad4)")
+			(name "unconnected-(U1-5V-Pad43)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "4")
-				(pinfunction "Pin_4_4")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "43")
+				(pinfunction "5V_43")
+				(pintype "power_in+no_connect")
 			)
 		)
 		(net
 			(code "11")
-			(name "unconnected-(J1-Pin_5-Pad5)")
+			(name "unconnected-(U1-EN-Pad3)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "5")
-				(pinfunction "Pin_5_5")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "3")
+				(pinfunction "EN_3")
+				(pintype "input+no_connect")
 			)
 		)
 		(net
 			(code "12")
-			(name "unconnected-(J1-Pin_9-Pad9)")
+			(name "unconnected-(U1-GPIO0-Pad34)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "9")
-				(pinfunction "Pin_9_9")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "34")
+				(pinfunction "GPIO0_34")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "13")
-			(name "unconnected-(J1-Pin_10-Pad10)")
+			(name "unconnected-(U1-GPIO2-Pad25)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "10")
-				(pinfunction "Pin_10_10")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "25")
+				(pinfunction "GPIO2_25")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "14")
-			(name "unconnected-(J1-Pin_11-Pad11)")
+			(name "unconnected-(U1-GPIO3-Pad15)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "11")
-				(pinfunction "Pin_11_11")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "15")
+				(pinfunction "GPIO3_15")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "15")
-			(name "unconnected-(J1-Pin_12-Pad12)")
+			(name "unconnected-(U1-GPIO7-Pad7)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "12")
-				(pinfunction "Pin_12_12")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "7")
+				(pinfunction "GPIO7_7")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "16")
-			(name "unconnected-(J1-Pin_14-Pad14)")
+			(name "unconnected-(U1-GPIO8-Pad12)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "14")
-				(pinfunction "Pin_14_14")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "12")
+				(pinfunction "GPIO8_12")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "17")
-			(name "unconnected-(J1-Pin_15-Pad15)")
+			(name "unconnected-(U1-GPIO9-Pad17)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "15")
-				(pinfunction "Pin_15_15")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "17")
+				(pinfunction "GPIO9_17")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "18")
-			(name "unconnected-(J1-Pin_16-Pad16)")
+			(name "unconnected-(U1-GPIO10-Pad18)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "16")
-				(pinfunction "Pin_16_16")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "18")
+				(pinfunction "GPIO10_18")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "19")
-			(name "unconnected-(J1-Pin_17-Pad17)")
+			(name "unconnected-(U1-GPIO11-Pad19)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "17")
-				(pinfunction "Pin_17_17")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "19")
+				(pinfunction "GPIO11_19")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "20")
-			(name "unconnected-(J1-Pin_18-Pad18)")
+			(name "unconnected-(U1-GPIO12-Pad20)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "18")
-				(pinfunction "Pin_18_18")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "20")
+				(pinfunction "GPIO12_20")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "21")
-			(name "unconnected-(J1-Pin_19-Pad19)")
+			(name "unconnected-(U1-GPIO13-Pad21)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "19")
-				(pinfunction "Pin_19_19")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "21")
+				(pinfunction "GPIO13_21")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "22")
-			(name "unconnected-(J1-Pin_20-Pad20)")
+			(name "unconnected-(U1-GPIO13-Pad40)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "20")
-				(pinfunction "Pin_20_20")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "40")
+				(pinfunction "GPIO13_40")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "23")
-			(name "unconnected-(J1-Pin_21-Pad21)")
+			(name "unconnected-(U1-GPIO14-Pad22)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "21")
-				(pinfunction "Pin_21_21")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "22")
+				(pinfunction "GPIO14_22")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "24")
-			(name "unconnected-(J1-Pin_22-Pad22)")
+			(name "unconnected-(U1-GPIO14-Pad39)")
 			(class "Default")
 			(node
-				(ref "J1")
-				(pin "22")
-				(pinfunction "Pin_22_22")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "39")
+				(pinfunction "GPIO14_39")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "25")
-			(name "unconnected-(J2-Pin_2-Pad2)")
+			(name "unconnected-(U1-GPIO15-Pad8)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "2")
-				(pinfunction "Pin_2_2")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "8")
+				(pinfunction "GPIO15_8")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "26")
-			(name "unconnected-(J2-Pin_3-Pad3)")
+			(name "unconnected-(U1-GPIO16-Pad9)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "3")
-				(pinfunction "Pin_3_3")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "9")
+				(pinfunction "GPIO16_9")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "27")
-			(name "unconnected-(J2-Pin_4-Pad4)")
+			(name "unconnected-(U1-GPIO17-Pad10)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "4")
-				(pinfunction "Pin_4_4")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "10")
+				(pinfunction "GPIO17_10")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "28")
-			(name "unconnected-(J2-Pin_5-Pad5)")
+			(name "unconnected-(U1-GPIO18-Pad11)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "5")
-				(pinfunction "Pin_5_5")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "11")
+				(pinfunction "GPIO18_11")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "29")
-			(name "unconnected-(J2-Pin_6-Pad6)")
+			(name "unconnected-(U1-GPIO19-Pad13)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "6")
-				(pinfunction "Pin_6_6")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "13")
+				(pinfunction "GPIO19_13")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "30")
-			(name "unconnected-(J2-Pin_7-Pad7)")
+			(name "unconnected-(U1-GPIO20-Pad14)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "7")
-				(pinfunction "Pin_7_7")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "14")
+				(pinfunction "GPIO20_14")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "31")
-			(name "unconnected-(J2-Pin_8-Pad8)")
+			(name "unconnected-(U1-GPIO21-Pad38)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "8")
-				(pinfunction "Pin_8_8")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "38")
+				(pinfunction "GPIO21_38")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "32")
-			(name "unconnected-(J2-Pin_9-Pad9)")
+			(name "unconnected-(U1-GPIO35-Pad33)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "9")
-				(pinfunction "Pin_9_9")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "33")
+				(pinfunction "GPIO35_33")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "33")
-			(name "unconnected-(J2-Pin_10-Pad10)")
+			(name "unconnected-(U1-GPIO36-Pad32)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "10")
-				(pinfunction "Pin_10_10")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "32")
+				(pinfunction "GPIO36_32")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "34")
-			(name "unconnected-(J2-Pin_11-Pad11)")
+			(name "unconnected-(U1-GPIO37-Pad31)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "11")
-				(pinfunction "Pin_11_11")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "31")
+				(pinfunction "GPIO37_31")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "35")
-			(name "unconnected-(J2-Pin_12-Pad12)")
+			(name "unconnected-(U1-GPIO38-Pad30)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "12")
-				(pinfunction "Pin_12_12")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "30")
+				(pinfunction "GPIO38_30")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "36")
-			(name "unconnected-(J2-Pin_13-Pad13)")
+			(name "unconnected-(U1-GPIO39-Pad29)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "13")
-				(pinfunction "Pin_13_13")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "29")
+				(pinfunction "GPIO39_29")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "37")
-			(name "unconnected-(J2-Pin_16-Pad16)")
+			(name "unconnected-(U1-GPIO42-Pad26)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "16")
-				(pinfunction "Pin_16_16")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "26")
+				(pinfunction "GPIO42_26")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "38")
-			(name "unconnected-(J2-Pin_17-Pad17)")
+			(name "unconnected-(U1-GPIO45-Pad35)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "17")
-				(pinfunction "Pin_17_17")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "35")
+				(pinfunction "GPIO45_35")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "39")
-			(name "unconnected-(J2-Pin_18-Pad18)")
+			(name "unconnected-(U1-GPIO46-Pad16)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "18")
-				(pinfunction "Pin_18_18")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "16")
+				(pinfunction "GPIO46_16")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "40")
-			(name "unconnected-(J2-Pin_19-Pad19)")
+			(name "unconnected-(U1-GPIO47-Pad37)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "19")
-				(pinfunction "Pin_19_19")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "37")
+				(pinfunction "GPIO47_37")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 		(net
 			(code "41")
-			(name "unconnected-(J2-Pin_20-Pad20)")
+			(name "unconnected-(U1-GPIO48-Pad36)")
 			(class "Default")
 			(node
-				(ref "J2")
-				(pin "20")
-				(pinfunction "Pin_20_20")
-				(pintype "passive+no_connect")
-			)
-		)
-		(net
-			(code "42")
-			(name "unconnected-(J2-Pin_21-Pad21)")
-			(class "Default")
-			(node
-				(ref "J2")
-				(pin "21")
-				(pinfunction "Pin_21_21")
-				(pintype "passive+no_connect")
-			)
-		)
-		(net
-			(code "43")
-			(name "unconnected-(J2-Pin_22-Pad22)")
-			(class "Default")
-			(node
-				(ref "J2")
-				(pin "22")
-				(pinfunction "Pin_22_22")
-				(pintype "passive+no_connect")
+				(ref "U1")
+				(pin "36")
+				(pinfunction "GPIO48_36")
+				(pintype "bidirectional+no_connect")
 			)
 		)
 	)
