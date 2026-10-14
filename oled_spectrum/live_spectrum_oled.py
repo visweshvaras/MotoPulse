@@ -53,6 +53,14 @@ class SSD1306_I2C(framebuf.FrameBuffer):
         self.write_list[1] = self.buffer
         self.i2c.writevto(self.addr, self.write_list)
 
+# Standard 9-clock I2C bus recovery in case slave was interrupted
+scl_recover = machine.Pin(8, machine.Pin.OUT)
+for _ in range(9):
+    scl_recover.value(0)
+    time.sleep_us(5)
+    scl_recover.value(1)
+    time.sleep_us(5)
+
 # Fast 400 kHz I2C for high-FPS fluid oscilloscope display
 i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
 oled = SSD1306_I2C(128, 64, i2c)
@@ -101,11 +109,11 @@ while True:
     
     # Continuous oscilloscope line trace across all 128 pixels (x: 0 to 127)
     prev_x = 0
-    s0 = (left[0] - dc) * 6 // 256
+    s0 = (left[0] - dc) * 10 // 256
     prev_y = max(0, min(63, 32 - s0))
     
     for x in range(1, 128):
-        s = (left[x] - dc) * 6 // 256
+        s = (left[x] - dc) * 10 // 256
         y = max(0, min(63, 32 - s))
         oled.line(prev_x, prev_y, x, y, 1)
         prev_x = x
