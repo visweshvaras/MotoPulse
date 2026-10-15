@@ -1314,35 +1314,29 @@ def telemetry_collector_thread():
                             norm_wl = [round(float(v) / scale_ref, 3) for v in raw_wl]
                             norm_wr = [round(float(v) / scale_ref, 3) for v in raw_wr]
 
-                            is_browser_audio_active = (time.time() - g_last_browser_audio_time) < 3.0
+                            # Continuously feed live ESP32 INMP441 audio into rolling window for TinyML inference
+                            if len(raw_wl) > 0:
+                                pcm_float = np.array(raw_wl, dtype=np.float32) / 32768.0
+                                # Resample / interpolate 32 samples across ~450 samples (matching 28ms frame at 16kHz)
+                                x_old = np.linspace(0, 1, len(pcm_float))
+                                x_new = np.linspace(0, 1, 450)
+                                interp_chunk = np.interp(x_new, x_old, pcm_float).astype(np.float32)
+                                with g_audio_window_lock:
+                                    g_audio_window[:-450] = g_audio_window[450:]
+                                    g_audio_window[-450:] = interp_chunk
+                                    cur_hw_window = np.copy(g_audio_window)
 
-                            if not is_browser_audio_active:
-                                now = time.time()
-                                if (now - last_infer_time) >= 0.25:
-                                    last_infer_time = now
-                                    is_defect_sim = False
-                                    if g_sim_defect_frames_remaining > 0:
-                                        g_sim_defect_frames_remaining -= 1
-                                        is_defect_sim = True
+                            now = time.time()
+                            if (now - last_infer_time) >= 0.20:
+                                last_infer_time = now
+                                is_defect_sim = False
+                                if g_sim_defect_frames_remaining > 0:
+                                    g_sim_defect_frames_remaining -= 1
+                                    is_defect_sim = True
 
-                                    if is_defect_sim:
-                                        latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp, is_simulated_defect=True)
-                                    elif pz_amp >= 450:
-                                        # Physical knock detected on piezo sensor
-                                        latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp)
-                                    elif max_amp > 320 and len(norm_wl) > 0:
-                                        # Synthesize rolling audio frame from physical hardware microphones
-                                        scale_factor = float(max_amp) / 1800.0
-                                        synth_chunk = np.array(norm_wl, dtype=np.float32) * scale_factor
-                                        tiled_chunk = np.tile(synth_chunk, int(np.ceil(512 / len(synth_chunk))))[:512]
-                                        with g_audio_window_lock:
-                                            g_audio_window[:-512] = g_audio_window[512:]
-                                            g_audio_window[-512:] = tiled_chunk
-                                            cur_hw_window = np.copy(g_audio_window)
-                                        latest_prediction = g_predictive_engine.predict(cur_hw_window, pz_amp)
-                                    else:
-                                        latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp)
-                                    g_diagnostic_engine.add_prediction(latest_prediction)
+                                cur_infer_window = cur_hw_window if 'cur_hw_window' in locals() else np.zeros(16000, dtype=np.float32)
+                                latest_prediction = g_predictive_engine.predict(cur_infer_window, pz_amp, is_simulated_defect=is_defect_sim)
+                                g_diagnostic_engine.add_prediction(latest_prediction)
 
                             now = time.time()
                             if (now - last_pred_log_time) >= 1.0:
@@ -1354,7 +1348,7 @@ def telemetry_collector_thread():
                                     conf = diag_cur["fixed_diagnosis"].get("confidence", 0.0)
                                     prob = diag_cur["fixed_diagnosis"].get("problem_identified", "None")
                                     stab = diag_cur["stability_index"]
-                                    icon = "🟢" if h_state == "GOOD" else "🔴"
+                                    icon = "🟢" if h_state == "GOOD" else ("⚪" if h_state == "STANDBY" else "🔴")
                                     sys.stdout.write(f"\r[FIXED LOCKED] 🔒 {icon} {h_state} ({conf:5.1f}%, {stab:4.1f}% stable) | Fault: {p_lbl} | Problem: {prob}\n")
                                 elif diag_cur["is_evaluating"]:
                                     elap = diag_cur["elapsed_seconds"]
@@ -1368,7 +1362,7 @@ def telemetry_collector_thread():
                                     p_lbl = latest_prediction.get("predicted_label", "")
                                     conf = latest_prediction.get("confidence", 0.0)
                                     prob = latest_prediction.get("problem_identified", "None")
-                                    icon = "🟢" if h_state == "GOOD" else "🔴"
+                                    icon = "🟢" if h_state == "GOOD" else ("⚪" if h_state == "STANDBY" else "🔴")
                                     sys.stdout.write(f"\r[LIVE AUDIO ML] {icon} HEALTH: {h_state} ({conf:5.1f}%) | Fault: {p_lbl} | Problem: {prob}\n")
                                 sys.stdout.flush()
 
@@ -1445,36 +1439,36 @@ def telemetry_collector_thread():
                                 }
                                 latest_telemetry["learner"] = learner_info
 
-                                # If browser microphone is not actively streaming audio, update acoustic telemetry from hardware
-                                if not is_browser_audio_active:
-                                    latest_telemetry["source"] = "hardware"
-                                    latest_telemetry["fps"] = 36
-                                    latest_telemetry["p2p_l"] = p2p_l
-                                    latest_telemetry["p2p_r"] = p2p_r
-                                    latest_telemetry["mic1"] = p2p_l
-                                    latest_telemetry["mic2"] = p2p_r
-                                    latest_telemetry["mic1_peak"] = p2p_l
-                                    latest_telemetry["mic2_peak"] = p2p_r
-                                    latest_telemetry["grad_pct"] = grad
-                                    latest_telemetry["gradient"] = grad
-                                    latest_telemetry["gradient_pct"] = grad
-                                    latest_telemetry["status"] = "NEAR" if is_near else ("FAR" if max_amp > ambient * 2 else "ARMED")
-                                    latest_telemetry["is_near"] = is_near
-                                    latest_telemetry["distance_cm"] = round(dist_cm, 1)
-                                    latest_telemetry["wave_l"] = norm_wl
-                                    latest_telemetry["wave_r"] = norm_wr
-                                    latest_telemetry["audio_pcm"] = raw_wl  # Raw PCM samples for in-browser live listening
-                                    latest_telemetry["spectrum_32"] = active_pred.get("spectrum_32", [0.05]*32)
-                                    latest_telemetry["prediction"] = active_pred
-                                    latest_telemetry["diagnostic_session"] = diag_status
-                                    latest_telemetry["gate"] = {
-                                        "state": gate_state,
-                                        "is_near": is_near,
-                                        "distance_cm": round(dist_cm, 1),
-                                        "energy_pct": min(100, int((max_amp / 3200.0) * 100)),
-                                        "threshold": thresh,
-                                        "ambient": ambient
-                                    }
+                                # Hardware acoustic telemetry from ESP32 dual INMP441 microphones is primary
+                                latest_telemetry["source"] = "esp32_hardware"
+                                latest_telemetry["mic_source"] = "ESP32-S3 Dual INMP441 MEMS (16 kHz I2S)"
+                                latest_telemetry["fps"] = 36
+                                latest_telemetry["p2p_l"] = p2p_l
+                                latest_telemetry["p2p_r"] = p2p_r
+                                latest_telemetry["mic1"] = p2p_l
+                                latest_telemetry["mic2"] = p2p_r
+                                latest_telemetry["mic1_peak"] = p2p_l
+                                latest_telemetry["mic2_peak"] = p2p_r
+                                latest_telemetry["grad_pct"] = grad
+                                latest_telemetry["gradient"] = grad
+                                latest_telemetry["gradient_pct"] = grad
+                                latest_telemetry["status"] = "NEAR" if is_near else ("FAR" if max_amp > ambient * 2 else "ARMED")
+                                latest_telemetry["is_near"] = is_near
+                                latest_telemetry["distance_cm"] = round(dist_cm, 1)
+                                latest_telemetry["wave_l"] = norm_wl
+                                latest_telemetry["wave_r"] = norm_wr
+                                latest_telemetry["audio_pcm"] = raw_wl  # Raw PCM samples from ESP32 for in-browser live listening!
+                                latest_telemetry["spectrum_32"] = active_pred.get("spectrum_32", [0.05]*32)
+                                latest_telemetry["prediction"] = active_pred
+                                latest_telemetry["diagnostic_session"] = diag_status
+                                latest_telemetry["gate"] = {
+                                    "state": gate_state,
+                                    "is_near": is_near,
+                                    "distance_cm": round(dist_cm, 1),
+                                    "energy_pct": min(100, int((max_amp / 3200.0) * 100)),
+                                    "threshold": thresh,
+                                    "ambient": ambient
+                                }
             except Exception as e:
                 print(f"[BRIDGE] Hardware stream interrupted: {e}")
             finally:

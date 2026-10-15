@@ -83,6 +83,7 @@
     audioVolume: 0.75,
     audioNextTime: 0,
     audioDbDecay: -42.0,
+    isBrowserMicActive: false,
 
     // 32-Band Spectrum Monitor
     spectrum32: new Float32Array(32).fill(0.04),
@@ -103,6 +104,8 @@
   const dom = {
     espStatus: document.getElementById('esp-status'),
     pillEsp: document.getElementById('pill-esp'),
+    pillMic: document.getElementById('pill-mic'),
+    micStatus: document.getElementById('mic-status'),
     fpsBadge: document.getElementById('fps-badge'),
 
     // Diagnostic Session Controller
@@ -419,6 +422,16 @@
     if (pkt.prediction) {
       state.prediction = pkt.prediction;
       updatePredictivePrognosticsUI(pkt.prediction);
+    }
+
+    // Source status pill indicator
+    if (dom.micStatus && !state.isBrowserMicActive) {
+      if (pkt.source === 'esp32_hardware' || pkt.source === 'hardware') {
+        dom.micStatus.textContent = 'INMP441 STREAMING';
+        if (dom.pillMic) dom.pillMic.classList.add('active');
+      } else if (pkt.mic_source) {
+        dom.micStatus.textContent = pkt.mic_source;
+      }
     }
   }
 
@@ -1412,7 +1425,7 @@
     }
   }
 
-  // --- Feature: Live Browser Microphone Auto-Listening (Zero Storage Ephemeral Stream) ---
+  // --- Feature: Browser Microphone Capture (Optional Override, Default is ESP32 Hardware Stream) ---
   function initBrowserMicrophoneCapture() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       console.warn('[MotoPulse Mic] Browser MediaDevices getUserMedia not supported.');
@@ -1423,7 +1436,6 @@
     let micCtx = null;
     let micSource = null;
     let micProcessor = null;
-    let lastSendTime = 0;
 
     async function startMicCapture() {
       if (isMicActive) return;
@@ -1484,7 +1496,7 @@
             dom.earDbLevel.textContent = `Live Mic: ${db.toFixed(1)} dBFS`;
           }
 
-          // Gapless streaming: Send every audio buffer sequentially without dropping frames
+          // Send audio buffer to server
           if (state.ws && state.ws.readyState === WebSocket.OPEN) {
             state.ws.send(JSON.stringify({
               type: "audio_pcm",
@@ -1499,42 +1511,48 @@
         micProcessor.connect(muteNode);
         muteNode.connect(micCtx.destination);
         isMicActive = true;
-        console.log('[MotoPulse Mic] 🎙️ Live vehicle audio capture active via browser microphone!');
+        state.isBrowserMicActive = true;
+        console.log('[MotoPulse Mic] 🎙️ Laptop microphone override active!');
 
-        const micPill = document.getElementById('pill-mic');
-        const micStatus = document.getElementById('mic-status');
-        if (micPill) micPill.classList.add('active');
-        if (micStatus) micStatus.textContent = 'LISTENING';
+        if (dom.micStatus) dom.micStatus.textContent = 'LAPTOP MIC (ACTIVE)';
+        if (dom.pillMic) dom.pillMic.classList.add('active');
       } catch (err) {
-        console.warn('[MotoPulse Mic] Microphone permission not granted:', err);
-        const micStatus = document.getElementById('mic-status');
-        if (micStatus) micStatus.textContent = 'CLICK TO ENABLE';
+        console.warn('[MotoPulse Mic] Laptop microphone permission not granted:', err);
+        if (dom.micStatus) dom.micStatus.textContent = 'INMP441 STREAMING';
       }
     }
 
-    // Attempt direct microphone acquisition if permission already granted
-    startMicCapture();
-
-    // Auto-attempt start on first user interaction on dashboard
-    const unlockEvents = ['click', 'pointerdown', 'keydown', 'touchstart'];
-    function onGesture() {
-      startMicCapture();
-      unlockEvents.forEach(evt => window.removeEventListener(evt, onGesture));
+    function stopMicCapture() {
+      if (micSource) {
+        try { micSource.disconnect(); } catch (_) {}
+        micSource = null;
+      }
+      if (micProcessor) {
+        try { micProcessor.disconnect(); } catch (_) {}
+        micProcessor = null;
+      }
+      if (micCtx) {
+        try { micCtx.close(); } catch (_) {}
+        micCtx = null;
+      }
+      isMicActive = false;
+      state.isBrowserMicActive = false;
+      if (dom.micStatus) dom.micStatus.textContent = 'INMP441 STREAMING';
+      console.log('[MotoPulse Mic] Reverted to ESP32 INMP441 hardware stream.');
     }
-    unlockEvents.forEach(evt => window.addEventListener(evt, onGesture, { passive: true }));
 
-    // Also trigger on listen button
-    if (dom.btnEarListen) {
-      dom.btnEarListen.addEventListener('click', function () {
-        startMicCapture();
-      });
-    }
-
+    // Default: ESP32 hardware dual INMP441 stream is active.
+    // Allow user to manually toggle laptop microphone override by clicking the mic status pill.
     const micPill = document.getElementById('pill-mic');
     if (micPill) {
       micPill.style.cursor = 'pointer';
+      micPill.title = 'Click to toggle Laptop Mic override (Default is ESP32-S3 INMP441 stream)';
       micPill.addEventListener('click', function () {
-        startMicCapture();
+        if (!isMicActive) {
+          startMicCapture();
+        } else {
+          stopMicCapture();
+        }
       });
     }
   }
