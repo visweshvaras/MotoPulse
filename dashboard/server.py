@@ -217,14 +217,16 @@ class TinyMLPredictiveEngine:
         rms = float(np.sqrt(np.mean(ac_signal ** 2)))
         peak = float(np.max(np.abs(ac_signal)))
 
-        # Strict Acoustic Energy Gating & Silence/Standby Detector:
-        # A vehicle engine or audio playback from phone/speaker produces peak >= 0.050 and rms >= 0.016.
-        # Ambient silence, fan whir, and laptop preamp noise have peak < 0.050 or rms < 0.016.
-        is_audio_quiet = (rms < 0.016 or peak < 0.050)
+        # Acoustic Energy Gating & Silence/Standby Detector:
+        # Real automotive engine acoustics (direct or via phone/laptop speaker) produce peak >= 0.022 or rms >= 0.006.
+        # Ambient silence, fan whir, and electrical preamp noise have both peak < 0.022 and rms < 0.006.
+        is_audio_quiet = (rms < 0.006 and peak < 0.022)
         is_piezo_idle = (piezo_amp < 350.0)
 
         if (is_audio_quiet and is_piezo_idle) and not is_simulated_defect:
-            self.ema_probs = None
+            self.quiet_frame_count = getattr(self, "quiet_frame_count", 0) + 1
+            if self.quiet_frame_count > 8:
+                self.ema_probs = None
             return {
                 "health_state": "STANDBY",
                 "is_healthy": True,
@@ -247,6 +249,7 @@ class TinyMLPredictiveEngine:
                 }
             }
 
+        self.quiet_frame_count = 0
         feat_tensor, spec_32 = self.extract_features(pcm_16k)
 
         if is_simulated_defect:
@@ -281,7 +284,7 @@ class TinyMLPredictiveEngine:
             if self.ema_probs is None:
                 self.ema_probs = softmax_probs.copy()
             else:
-                self.ema_probs = 0.65 * softmax_probs + 0.35 * self.ema_probs
+                self.ema_probs = 0.35 * softmax_probs + 0.65 * self.ema_probs
             smoothed = self.ema_probs / np.sum(self.ema_probs)
 
             pred_idx = int(np.argmax(smoothed))
