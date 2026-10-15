@@ -154,6 +154,8 @@ class TinyMLPredictiveEngine:
             print(f"[PREDICTOR] TFLite runtime unavailable ({e}). Using analytical feature projection engine.")
             self.interpreter = None
 
+        self.ema_probs = None
+
         # Precompute 32 Mel filterbanks (40 Hz - 8000 Hz)
         self.sr = 16000
         self.n_fft = 512
@@ -185,9 +187,10 @@ class TinyMLPredictiveEngine:
         elif len(pcm_16k) > 16000:
             pcm_16k = pcm_16k[-16000:]
 
-        # Peak normalize to [-0.95, 0.95] to prevent volume/distance bias matching training
+        # Peak normalize to [-0.95, 0.95] only if signal contains real acoustic energy
+        # Never amplify microvolt electrical noise floor into false defects!
         max_val = np.max(np.abs(pcm_16k))
-        if max_val > 0.001:
+        if max_val >= 0.025:
             pcm_16k = (pcm_16k / max_val) * 0.95
 
         frames = np.lib.stride_tricks.sliding_window_view(pcm_16k, self.frame_len)[::self.frame_step]
@@ -206,6 +209,35 @@ class TinyMLPredictiveEngine:
         return tensor_4d, spec_norm
 
     def predict(self, pcm_16k, piezo_amp=0.0, is_simulated_defect=False):
+        # Strict Acoustic Energy Gating & Silence/Standby Detector
+        rms = float(np.sqrt(np.mean(pcm_16k ** 2)))
+        peak = float(np.max(np.abs(pcm_16k)))
+
+        # If audio energy is below threshold and no mechanical impact, report Standby
+        if rms < 0.008 and peak < 0.025 and piezo_amp < 120.0 and not is_simulated_defect:
+            self.ema_probs = None
+            return {
+                "health_state": "STANDBY",
+                "is_healthy": True,
+                "is_standby": True,
+                "problem_identified": "None (Listening / Engine Off)",
+                "predicted_class": "standby",
+                "predicted_label": "Standby (Listening for Vehicle Acoustics...)",
+                "confidence": 0.0,
+                "probabilities": {cls: 0.0 for cls in self.class_names},
+                "spectrum_32": [0.03] * 32,
+                "prognosis": {
+                    "rul_km": 15000,
+                    "rul_hours": 350,
+                    "risk_level": "NOMINAL",
+                    "risk_color": "green",
+                    "degradation_stage": "Stage 0 (Standby / Ambient Silence)",
+                    "health_score": 100.0,
+                    "trend": "STANDBY",
+                    "prescriptive_action": "Microphone active. Awaiting vehicle acoustic sound. Play engine audio to perform diagnostic classification."
+                }
+            }
+
         feat_tensor, spec_32 = self.extract_features(pcm_16k)
 
         if is_simulated_defect:
@@ -236,10 +268,17 @@ class TinyMLPredictiveEngine:
             else:
                 softmax_probs = np.ones(len(self.class_names)) / len(self.class_names)
 
-            pred_idx = int(np.argmax(softmax_probs))
+            # Smooth streaming probabilities using EMA to prevent erratic frame-to-frame fluttering
+            if self.ema_probs is None:
+                self.ema_probs = softmax_probs.copy()
+            else:
+                self.ema_probs = 0.65 * softmax_probs + 0.35 * self.ema_probs
+            smoothed = self.ema_probs / np.sum(self.ema_probs)
+
+            pred_idx = int(np.argmax(smoothed))
             pred_class = self.class_names[pred_idx]
-            conf = float(softmax_probs[pred_idx] * 100.0)
-            probs = {cls: round(float(p) * 100.0, 1) for cls, p in zip(self.class_names, softmax_probs)}
+            conf = float(smoothed[pred_idx] * 100.0)
+            probs = {cls: round(float(p) * 100.0, 1) for cls, p in zip(self.class_names, smoothed)}
         else:
             # Analytical baseline fallback
             pred_class = "normal_idle"
@@ -422,6 +461,9 @@ class DiagnosticWindowEngine:
     def add_prediction(self, pred):
         with self.lock:
             if self.state == "EVALUATING":
+                # Do not dilute evaluation window with silence / standby frames
+                if pred.get("is_standby"):
+                    return
                 now = time.time()
                 self.history.append((now, pred))
                 elapsed = now - self.start_time
@@ -431,6 +473,29 @@ class DiagnosticWindowEngine:
     def _lock_diagnosis(self):
         if not self.history:
             self.state = "STREAMING"
+            self.fixed_diagnosis = {
+                "is_healthy": True,
+                "health_state": "STANDBY",
+                "problem_identified": "No Vehicle Audio Detected",
+                "predicted_class": "standby",
+                "predicted_label": "Standby (No Vehicle Audio Detected During Evaluation)",
+                "confidence": 0.0,
+                "stability_index": 0.0,
+                "sample_windows_analyzed": 0,
+                "duration_analyzed_sec": round(self.target_duration, 1),
+                "probabilities": {c: 0.0 for c in g_predictive_engine.class_names},
+                "spectrum_32": [0.03] * 32,
+                "prognosis": {
+                    "rul_km": 15000,
+                    "rul_hours": 350,
+                    "risk_level": "NOMINAL",
+                    "risk_color": "green",
+                    "degradation_stage": "Stage 0 (No Sound Detected)",
+                    "health_score": 100.0,
+                    "trend": "STANDBY",
+                    "prescriptive_action": "No vehicle acoustic audio was detected during the evaluation window. Start engine or play audio and re-evaluate."
+                }
+            }
             return
 
         all_classes = list(self.history[0][1].get("probabilities", {}).keys())
@@ -877,13 +942,17 @@ while True:
 """
 
 
+g_last_browser_audio_time = 0.0
+
+
 def feed_browser_audio(samples):
     """
     Feeds continuous 16 kHz audio PCM float chunks [-1.0, 1.0] from the browser microphone directly
     into the rolling 16,000-sample buffer and triggers immediate TinyML predictive diagnostics.
     Zero audio saved to disk (purely ephemeral).
     """
-    global g_audio_window, latest_prediction, latest_telemetry
+    global g_audio_window, latest_prediction, latest_telemetry, g_last_browser_audio_time
+    g_last_browser_audio_time = time.time()
     with g_audio_window_lock:
         shift_len = min(len(samples), len(g_audio_window))
         g_audio_window[:-shift_len] = g_audio_window[shift_len:]
@@ -1015,50 +1084,76 @@ def telemetry_collector_thread():
                             norm_wl = [round(float(v) / scale_ref, 3) for v in raw_wl]
                             norm_wr = [round(float(v) / scale_ref, 3) for v in raw_wr]
 
-                            # Accumulate into 16,000-sample rolling audio buffer
-                            new_pcm_floats = np.array(raw_wl, dtype=np.float32) / 32768.0
-                            with g_audio_window_lock:
-                                shift_len = len(new_pcm_floats)
-                                g_audio_window[:-shift_len] = g_audio_window[shift_len:]
-                                g_audio_window[-shift_len:] = new_pcm_floats
-                                cur_window = np.copy(g_audio_window)
+                            is_browser_audio_active = (time.time() - g_last_browser_audio_time) < 3.0
 
-                            # Run TinyML Predictive Prognostics Inference every 150ms
+                            if not is_browser_audio_active:
+                                # Accumulate into 16,000-sample rolling audio buffer
+                                new_pcm_floats = np.array(raw_wl, dtype=np.float32) / 32768.0
+                                with g_audio_window_lock:
+                                    shift_len = len(new_pcm_floats)
+                                    g_audio_window[:-shift_len] = g_audio_window[shift_len:]
+                                    g_audio_window[-shift_len:] = new_pcm_floats
+                                    cur_window = np.copy(g_audio_window)
+
+                                # Run TinyML Predictive Prognostics Inference every 150ms
+                                now = time.time()
+                                if (now - last_infer_time) >= 0.15:
+                                    last_infer_time = now
+                                    latest_prediction = g_predictive_engine.predict(cur_window, pz_amp)
+                                    g_diagnostic_engine.add_prediction(latest_prediction)
+
                             now = time.time()
-                            if (now - last_infer_time) >= 0.15:
-                                last_infer_time = now
-                                latest_prediction = g_predictive_engine.predict(cur_window, pz_amp)
-                                g_diagnostic_engine.add_prediction(latest_prediction)
-                                if (now - last_pred_log_time) >= 1.0:
-                                    last_pred_log_time = now
-                                    diag_cur = g_diagnostic_engine.get_status()
-                                    if diag_cur["is_locked"]:
-                                        h_state = diag_cur["fixed_diagnosis"].get("health_state", "BAD")
-                                        p_lbl = diag_cur["fixed_diagnosis"].get("predicted_label", "")
-                                        conf = diag_cur["fixed_diagnosis"].get("confidence", 0.0)
-                                        prob = diag_cur["fixed_diagnosis"].get("problem_identified", "None")
-                                        stab = diag_cur["stability_index"]
-                                        icon = "🟢" if h_state == "GOOD" else "🔴"
-                                        sys.stdout.write(f"\r[FIXED LOCKED] 🔒 {icon} {h_state} ({conf:5.1f}%, {stab:4.1f}% stable) | Fault: {p_lbl} | Problem: {prob}\n")
-                                    elif diag_cur["is_evaluating"]:
-                                        elap = diag_cur["elapsed_seconds"]
-                                        tot = diag_cur["target_duration"]
-                                        h_state = latest_prediction.get("health_state", "UNKNOWN")
-                                        conf = latest_prediction.get("confidence", 0.0)
-                                        p_lbl = latest_prediction.get("predicted_label", "")
-                                        sys.stdout.write(f"\r[EVALUATING {elap:.1f}s/{tot:.0f}s] {h_state} ({conf:5.1f}%) | Current Lead: {p_lbl}\n")
-                                    else:
-                                        h_state = latest_prediction.get("health_state", "UNKNOWN")
-                                        p_lbl = latest_prediction.get("predicted_label", "")
-                                        conf = latest_prediction.get("confidence", 0.0)
-                                        prob = latest_prediction.get("problem_identified", "None")
-                                        icon = "🟢" if h_state == "GOOD" else "🔴"
-                                        sys.stdout.write(f"\r[LIVE AUDIO ML] {icon} HEALTH: {h_state} ({conf:5.1f}%) | Fault: {p_lbl} | Problem: {prob}\n")
-                                    sys.stdout.flush()
+                            if (now - last_pred_log_time) >= 1.0:
+                                last_pred_log_time = now
+                                diag_cur = g_diagnostic_engine.get_status()
+                                if diag_cur["is_locked"]:
+                                    h_state = diag_cur["fixed_diagnosis"].get("health_state", "BAD")
+                                    p_lbl = diag_cur["fixed_diagnosis"].get("predicted_label", "")
+                                    conf = diag_cur["fixed_diagnosis"].get("confidence", 0.0)
+                                    prob = diag_cur["fixed_diagnosis"].get("problem_identified", "None")
+                                    stab = diag_cur["stability_index"]
+                                    icon = "🟢" if h_state == "GOOD" else "🔴"
+                                    sys.stdout.write(f"\r[FIXED LOCKED] 🔒 {icon} {h_state} ({conf:5.1f}%, {stab:4.1f}% stable) | Fault: {p_lbl} | Problem: {prob}\n")
+                                elif diag_cur["is_evaluating"]:
+                                    elap = diag_cur["elapsed_seconds"]
+                                    tot = diag_cur["target_duration"]
+                                    h_state = latest_prediction.get("health_state", "UNKNOWN")
+                                    conf = latest_prediction.get("confidence", 0.0)
+                                    p_lbl = latest_prediction.get("predicted_label", "")
+                                    sys.stdout.write(f"\r[EVALUATING {elap:.1f}s/{tot:.0f}s] {h_state} ({conf:5.1f}%) | Current Lead: {p_lbl}\n")
+                                else:
+                                    h_state = latest_prediction.get("health_state", "UNKNOWN")
+                                    p_lbl = latest_prediction.get("predicted_label", "")
+                                    conf = latest_prediction.get("confidence", 0.0)
+                                    prob = latest_prediction.get("problem_identified", "None")
+                                    icon = "🟢" if h_state == "GOOD" else "🔴"
+                                    sys.stdout.write(f"\r[LIVE AUDIO ML] {icon} HEALTH: {h_state} ({conf:5.1f}%) | Fault: {p_lbl} | Problem: {prob}\n")
+                                sys.stdout.flush()
 
                             hw_frame_cnt += 1
                             learner_info = latest_telemetry.get("learner", {})
-                            if g_online_learner and (hw_frame_cnt % 10 == 0):
+
+                            # 1. Check if ESP32 sent embedded on-device continual learner telemetry
+                            if len(parts) >= 15 and parts[10] == "LRN":
+                                lrn_st = parts[11]
+                                lrn_cnt = int(parts[12])
+                                lrn_sc = float(parts[13])
+                                lrn_reg = int(parts[14])
+                                regime_names = ["Idle (750 RPM)", "City Drive (1800 RPM)", "Highway Cruise (2800 RPM)"]
+                                learner_info = {
+                                    "is_running": (lrn_st != "STANDBY"),
+                                    "status": "ANOMALY_DETECTED" if lrn_st == "ANOMALY" else ("LEARNING_ACTIVE" if lrn_st == "LEARNING" else "STANDBY"),
+                                    "regime": lrn_reg,
+                                    "regime_name": regime_names[lrn_reg % len(regime_names)],
+                                    "score": lrn_sc,
+                                    "is_anomaly": (lrn_st == "ANOMALY"),
+                                    "learned": (lrn_st == "LEARNING"),
+                                    "total_learned": lrn_cnt,
+                                    "confidence": 94.0 if lrn_cnt > 10 else 50.0,
+                                    "engine_state": "ON_DEVICE_ESP32",
+                                    "anomaly_count": 1 if lrn_st == "ANOMALY" else 0
+                                }
+                            elif g_online_learner and (hw_frame_cnt % 10 == 0):
                                 arr_l = np.array(norm_wl, dtype=np.float32)
                                 fft_vals = np.abs(np.fft.rfft(arr_l, n=64))[:32]
                                 fft_norm = fft_vals / (np.max(fft_vals) + 1e-5)
@@ -1202,17 +1297,19 @@ def telemetry_collector_thread():
         audio_pcm_samples = [int(v * 16000.0) for v in wave_l]
 
         # Simulation audio window update & inference
-        sim_audio_frame = np.array(wave_l, dtype=np.float32) * (float(mic1_base) / 2000.0)
-        with g_audio_window_lock:
-            g_audio_window[:-len(sim_audio_frame)] = g_audio_window[len(sim_audio_frame):]
-            g_audio_window[-len(sim_audio_frame):] = sim_audio_frame
-            cur_sim_window = np.copy(g_audio_window)
+        is_browser_audio_active = (time.time() - g_last_browser_audio_time) < 3.0
+        if not is_browser_audio_active:
+            sim_audio_frame = np.array(wave_l, dtype=np.float32) * (float(mic1_base) / 2000.0)
+            with g_audio_window_lock:
+                g_audio_window[:-len(sim_audio_frame)] = g_audio_window[len(sim_audio_frame):]
+                g_audio_window[-len(sim_audio_frame):] = sim_audio_frame
+                cur_sim_window = np.copy(g_audio_window)
 
-        now = time.time()
-        if (now - last_infer_time) >= 0.15:
-            last_infer_time = now
-            latest_prediction = g_predictive_engine.predict(cur_sim_window, pz_amp, is_simulated_defect=is_defect_sim)
-            g_diagnostic_engine.add_prediction(latest_prediction)
+            now = time.time()
+            if (now - last_infer_time) >= 0.15:
+                last_infer_time = now
+                latest_prediction = g_predictive_engine.predict(cur_sim_window, pz_amp, is_simulated_defect=is_defect_sim)
+                g_diagnostic_engine.add_prediction(latest_prediction)
 
         learner_info = latest_telemetry.get("learner", {})
         if g_online_learner and (sim_tick % 10 == 0):

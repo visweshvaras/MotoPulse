@@ -216,7 +216,7 @@ def extract_windows_for_class(file_list, class_name, target_count, mel_fb, windo
 
             # Peak normalize chunk to [-0.95, 0.95] to prevent mic volume bias
             max_val = np.max(np.abs(chunk))
-            if max_val > 0.001:
+            if max_val >= 0.025:
                 chunk = (chunk / max_val) * 0.95
 
             raw_windows.append(chunk)

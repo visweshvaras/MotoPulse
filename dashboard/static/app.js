@@ -1456,8 +1456,11 @@
           }
         };
 
+        const muteNode = micCtx.createGain();
+        muteNode.gain.value = 0.0;
         micSource.connect(micProcessor);
-        micProcessor.connect(micCtx.destination);
+        micProcessor.connect(muteNode);
+        muteNode.connect(micCtx.destination);
         isMicActive = true;
         console.log('[MotoPulse Mic] 🎙️ Live vehicle audio capture active via browser microphone!');
 

@@ -118,8 +118,62 @@ def init_hardware():
 
     return i2c, addr, fb, buf, flush_display, audio, adc, buf_in, dc_piezo
 
+class MicroOnlineLearner:
+    def __init__(self):
+        self.num_regimes = 3
+        self.dim = 5
+        self.means = [
+            [400.0, 200.0, 5.0, 15.0, 25.0],
+            [1800.0, 950.0, 12.0, 60.0, 120.0],
+            [4500.0, 2400.0, 18.0, 180.0, 350.0]
+        ]
+        self.vars = [[10000.0, 5000.0, 25.0, 80.0, 150.0] for _ in range(3)]
+        self.counts = [0, 0, 0]
+        self.total_learned = 0
+        self.alpha = 0.05
+
+    def step(self, feat, is_running):
+        if not is_running:
+            return "STANDBY", self.total_learned, 0.0, 0
+
+        best_regime = 0
+        min_dist = 1e9
+        for r in range(self.num_regimes):
+            d = 0.0
+            for i in range(self.dim):
+                diff = feat[i] - self.means[r][i]
+                d += diff * diff
+            if d < min_dist:
+                min_dist = d
+                best_regime = r
+
+        z_sum = 0.0
+        m = self.means[best_regime]
+        v = self.vars[best_regime]
+        for i in range(self.dim):
+            dev = abs(feat[i] - m[i])
+            sigma = v[i] ** 0.5
+            if sigma < 1.0: sigma = 1.0
+            z_sum += dev / sigma
+        z_score = z_sum / float(self.dim)
+
+        is_anomaly = (z_score > 3.2) or (feat[4] > 1400) or (feat[0] > 9000 and feat[2] > 40)
+        if is_anomaly:
+            return "ANOMALY", self.total_learned, z_score, best_regime
+
+        self.counts[best_regime] += 1
+        self.total_learned += 1
+        for i in range(self.dim):
+            x = float(feat[i])
+            delta = x - m[i]
+            m[i] += self.alpha * delta
+            v[i] = (1.0 - self.alpha) * v[i] + self.alpha * (delta * delta)
+
+        return "LEARNING", self.total_learned, z_score, best_regime
+
 def run_loop():
     i2c, addr, fb, buf, flush_display, audio, adc, buf_in, dc_piezo = init_hardware()
+    learner = MicroOnlineLearner()
     decay_peak = 0
     frame_count = 0
     print("MOTOPULSE_DISPLAY_ACTIVE")
@@ -130,18 +184,25 @@ def run_loop():
 
         left = []
         right = []
+        sum_abs = 0
+        hf_diff = 0
         for i in range(64):
             b = i * 8
             vl = (buf_in[b + 3] << 8) | buf_in[b + 2]
             if vl & 0x8000:
                 vl -= 0x10000
             left.append(vl)
+            sum_abs += abs(vl)
+            if i > 0:
+                hf_diff += abs(vl - left[i - 1])
 
             vr = (buf_in[b + 7] << 8) | buf_in[b + 6]
             if vr & 0x8000:
                 vr -= 0x10000
             right.append(vr)
 
+        rms_l = sum_abs // 64
+        hf_flux = hf_diff // 63
         p2p_l = max(left) - min(left)
         p2p_r = max(right) - min(right)
         max_amp = max(p2p_l, p2p_r)
@@ -165,22 +226,26 @@ def run_loop():
             decay_peak = max(0, decay_peak - 25)
 
         is_running = (max_amp > 800) or (decay_peak > 180)
-        is_anomaly = (decay_peak > 1400) or (max_amp > 8500 and grad > 45)
+        feat = [float(rms_l), float(hf_flux), float(grad), float(pz_amp), float(decay_peak)]
+        lrn_state, lrn_count, lrn_score, lrn_regime = learner.step(feat, is_running)
+        is_anomaly = (lrn_state == "ANOMALY")
 
         # Render OLED Frame
         fb.fill(0)
-        fb.text("MOTOPULSE", 0, 1, 1)
+        fb.text("MOTOPULSE AI", 0, 1, 1)
         if is_anomaly:
-            fb.fill_rect(82, 0, 46, 10, 1)
-            fb.text("!WARN", 84, 1, 0)
+            fb.fill_rect(76, 0, 52, 10, 1)
+            fb.text("!WARN!", 82, 1, 0)
+        elif lrn_state == "LEARNING":
+            fb.text("L:" + str(lrn_count), 80, 1, 1)
         elif is_running:
             fb.text("[RUN]", 88, 1, 1)
         else:
-            fb.text("[IDLE]", 80, 1, 1)
+            fb.text("[STANDBY]", 56, 1, 1)
         fb.hline(0, 11, 128, 1)
 
         # Oscilloscope Waveform
-        center_y = 30
+        center_y = 28
         scale = 16.0 / max(800, max_amp)
         prev_y = center_y
         for x in range(min(64, len(left))):
@@ -188,31 +253,37 @@ def run_loop():
             y = center_y - int(val * scale)
             if y < 13:
                 y = 13
-            elif y > 48:
-                y = 48
+            elif y > 45:
+                y = 45
             fb.line(x * 2, prev_y, x * 2 + 1, y, 1)
             prev_y = y
 
         # Dual VU Meter Bars
         audio_bar_w = min(60, int((max_amp / 7000.0) * 60))
-        fb.rect(0, 52, 62, 5, 1)
+        fb.rect(0, 47, 62, 5, 1)
         if audio_bar_w > 0:
-            fb.fill_rect(1, 53, audio_bar_w, 3, 1)
+            fb.fill_rect(1, 48, audio_bar_w, 3, 1)
 
         pz_bar_w = min(60, int((decay_peak / 1500.0) * 60))
-        fb.rect(66, 52, 62, 5, 1)
+        fb.rect(66, 47, 62, 5, 1)
         if pz_bar_w > 0:
-            fb.fill_rect(67, 53, pz_bar_w, 3, 1)
+            fb.fill_rect(67, 48, pz_bar_w, 3, 1)
 
-        fb.text("MIC", 18, 57, 1)
-        fb.text("PIEZO", 80, 57, 1)
+        # Bottom status
+        if is_anomaly:
+            fb.text("ANOMALY Z=" + str(round(lrn_score, 1)), 0, 55, 1)
+        elif lrn_state == "LEARNING":
+            fb.text("SELF-TRAIN:" + str(lrn_count), 0, 55, 1)
+        else:
+            fb.text("M:" + str(max_amp) + " P:" + str(pz_amp), 0, 55, 1)
+
         flush_display()
 
         if frame_count % 2 == 0:
             w_l = ",".join(str(left[k]) for k in range(0, 64, 2))
             w_r = ",".join(str(right[k]) for k in range(0, 64, 2))
             w_p = ",".join(str(pz_samples[k]) for k in range(0, 16))
-            print("TEL:" + str(p2p_l) + ":" + str(p2p_r) + ":" + str(grad) + ":" + str(pz_amp) + ":" + str(decay_peak) + ":" + str(dc_piezo) + ":" + w_l + ":" + w_r + ":" + w_p)
+            print("TEL:" + str(p2p_l) + ":" + str(p2p_r) + ":" + str(grad) + ":" + str(pz_amp) + ":" + str(decay_peak) + ":" + str(dc_piezo) + ":" + w_l + ":" + w_r + ":" + w_p + ":LRN:" + str(lrn_state) + ":" + str(lrn_count) + ":" + str(round(lrn_score, 2)) + ":" + str(lrn_regime))
 
         time.sleep_ms(10)
 
