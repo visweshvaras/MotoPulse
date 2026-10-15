@@ -24,7 +24,7 @@ class OnlineVehicleLearner:
     Embedded-friendly Online Continual Learning Engine.
     Executes in <1 ms on ESP32-S3 with <4 KB internal RAM.
     """
-    def __init__(self, embedding_dim=48, num_regimes=3, learning_rate=0.02, anomaly_threshold_sigma=3.5):
+    def __init__(self, embedding_dim=48, num_regimes=3, learning_rate=0.02, anomaly_threshold_sigma=3.5, learning_enabled=False):
         self.embedding_dim = embedding_dim
         self.num_regimes = num_regimes          # 0: Idle, 1: City Drive, 2: Highway Cruise
         self.alpha = learning_rate              # EMA adaptation rate
@@ -40,6 +40,15 @@ class OnlineVehicleLearner:
         self.running_confidence = 0.0
         self.total_frames_learned = 0
         self.anomaly_count = 0
+        self.learning_enabled = bool(learning_enabled)  # Auto-learning disabled by default until user turns it ON
+
+    def set_learning_enabled(self, enabled: bool):
+        """Controls whether the engine actively updates its baseline centroids."""
+        self.learning_enabled = bool(enabled)
+
+    def is_learning_active(self) -> bool:
+        """Returns True if the engine is running and actively adapting baseline."""
+        return self.is_running and self.learning_enabled
 
     def detect_vehicle_running(self, piezo_rms, audio_energy):
         """
@@ -137,10 +146,25 @@ class OnlineVehicleLearner:
                 "score": round(score, 3),
                 "is_anomaly": True,
                 "learned": False,
+                "learning_enabled": self.learning_enabled,
                 "total_learned": self.total_frames_learned
             }
 
-        # 5. STREAMING ONLINE ADAPTATION (Welford Exponential Moving Average):
+        # 5. USER-CONTROLLED LEARNING GATE:
+        # Only adapt the vehicle baseline when user has explicitly enabled auto-learning!
+        if not self.learning_enabled:
+            return {
+                "status": "BASELINE_LOCKED",
+                "is_running": True,
+                "regime": regime,
+                "score": round(score, 3),
+                "is_anomaly": False,
+                "learned": False,
+                "learning_enabled": False,
+                "total_learned": self.total_frames_learned
+            }
+
+        # 6. STREAMING ONLINE ADAPTATION (Welford Exponential Moving Average):
         # Update running mean and variance while vehicle operates healthily
         if self.regime_counts[regime] == 0:
             # Initialize regime with first sample
@@ -186,6 +210,9 @@ class OnlineVehicleLearner:
         self.total_frames_learned = int(profile["total_frames_learned"])
 
 
+OnlineContinualLearner = OnlineVehicleLearner
+
+
 def run_self_training_simulation():
     print("=" * 72)
     print("   🏎️  MotoPulse ESP32-S3 On-Device Self-Training Simulation")
@@ -217,11 +244,18 @@ def run_self_training_simulation():
         emb = np.concatenate([e32, std16])
         return emb.astype(np.float32)
 
-    learner = OnlineVehicleLearner(embedding_dim=48, num_regimes=3, learning_rate=0.05, anomaly_threshold_sigma=2.8)
+    learner = OnlineVehicleLearner(embedding_dim=48, num_regimes=3, learning_rate=0.05, anomaly_threshold_sigma=2.8, learning_enabled=False)
 
-    print("\nPhase 1: Car starts and drives normally for 100 seconds (Self-Learning active)...")
+    print("\nPhase 0: Engine starts with Auto-Learning OFF (Default Safety State)...")
     normal_samples = X[y == normal_idx]
-    
+    for step in range(5):
+        sample = normal_samples[step % len(normal_samples)]
+        emb = extract_embedding(sample)
+        res = learner.update_step(emb, piezo_rms=0.045, audio_energy=0.060)
+        print(f"  Frame {step:02d}s: Status={res['status']:<18} | Learning Active={learner.is_learning_active()} | Learned Frames={res['total_learned']}")
+
+    print("\nPhase 1: User explicitly toggles Auto-Learning ON (Baseline Adaptation)...")
+    learner.set_learning_enabled(True)
     # Simulate normal driving with steady piezo vibration & audio
     for step in range(100):
         sample = normal_samples[step % len(normal_samples)]

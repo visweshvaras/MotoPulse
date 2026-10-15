@@ -220,8 +220,9 @@
             <h2>Autonomous Continual Self-Learning Engine (ESP32-S3 On-Device ML)</h2>
           </div>
           <div class="card-actions">
+            <button class="btn-sm btn-learning-toggle" id="btn-toggle-learning" title="Click to enable or freeze online vehicle self-learning">🧠 Auto-Learning: OFF</button>
             <span class="badge" id="learner-engine-pill">ENGINE: RUNNING (95%)</span>
-            <span class="badge green" id="learner-status-pill">ACTIVE SELF-LEARNING</span>
+            <span class="badge" id="learner-status-pill">BASELINE FROZEN (OFF)</span>
           </div>
         </div>
 
@@ -280,6 +281,7 @@
             </div>
 
             <div class="interactive-controls">
+              <button class="btn-sm btn-learning-toggle" id="btn-toggle-learning-main">🧠 Enable Auto-Learning</button>
               <button class="btn-sm btn-engine" id="btn-toggle-engine">🚗 Toggle Engine Run/Off</button>
               <button class="btn-sm btn-defect" id="btn-inject-defect">💥 Inject Defect (Test Shield)</button>
               <button class="btn-sm btn-reset" id="btn-reset-learner">🔄 Reset Learned Baseline</button>

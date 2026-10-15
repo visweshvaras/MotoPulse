@@ -1769,14 +1769,43 @@
       }
     }
 
-    // Status pill
+    // Status pill & learning toggle states
+    const isLearningEnabled = !!lrn.learning_enabled;
+    const btnToggleLearning = document.getElementById('btn-toggle-learning');
+    const btnToggleLearningMain = document.getElementById('btn-toggle-learning-main');
+
+    if (btnToggleLearning) {
+      if (isLearningEnabled) {
+        btnToggleLearning.textContent = '🧠 Auto-Learning: ON';
+        btnToggleLearning.classList.add('active');
+      } else {
+        btnToggleLearning.textContent = '🧠 Auto-Learning: OFF';
+        btnToggleLearning.classList.remove('active');
+      }
+    }
+
+    if (btnToggleLearningMain) {
+      if (isLearningEnabled) {
+        btnToggleLearningMain.textContent = '🧠 Freeze Auto-Learning';
+        btnToggleLearningMain.classList.add('active');
+      } else {
+        btnToggleLearningMain.textContent = '🧠 Enable Auto-Learning';
+        btnToggleLearningMain.classList.remove('active');
+      }
+    }
+
     if (dom.learnerStatusPill) {
       if (lrn.is_anomaly || lrn.status === 'ANOMALY_DETECTED') {
         dom.learnerStatusPill.textContent = '🛡️ SHIELD LOCKED (DEFECT DETECTED)';
         dom.learnerStatusPill.style.color = '#ff3366';
         dom.learnerStatusPill.style.borderColor = 'rgba(255, 51, 102, 0.6)';
         dom.learnerStatusPill.style.background = 'rgba(255, 51, 102, 0.2)';
-      } else if (lrn.is_running && lrn.status === 'ADAPTING_BASELINE') {
+      } else if (!isLearningEnabled) {
+        dom.learnerStatusPill.textContent = '🔒 BASELINE FROZEN (AUTO-LEARN OFF)';
+        dom.learnerStatusPill.style.color = 'var(--orange)';
+        dom.learnerStatusPill.style.borderColor = 'rgba(255, 170, 0, 0.4)';
+        dom.learnerStatusPill.style.background = 'rgba(255, 170, 0, 0.12)';
+      } else if (lrn.is_running && (lrn.status === 'ADAPTING_BASELINE' || lrn.status === 'LEARNING_ACTIVE' || lrn.learned)) {
         dom.learnerStatusPill.textContent = '⚡ ACTIVE SELF-LEARNING';
         dom.learnerStatusPill.style.color = 'var(--green)';
         dom.learnerStatusPill.style.borderColor = 'rgba(0, 255, 136, 0.4)';
@@ -1787,7 +1816,7 @@
         dom.learnerStatusPill.style.borderColor = 'rgba(0, 240, 255, 0.4)';
         dom.learnerStatusPill.style.background = 'rgba(0, 240, 255, 0.12)';
       } else {
-        dom.learnerStatusPill.textContent = 'RESTING (ENGINE OFF)';
+        dom.learnerStatusPill.textContent = 'STANDBY (AWAITING RUN)';
         dom.learnerStatusPill.style.color = 'var(--text-muted)';
         dom.learnerStatusPill.style.borderColor = 'var(--border-card)';
         dom.learnerStatusPill.style.background = 'rgba(255, 255, 255, 0.04)';
@@ -1819,6 +1848,9 @@
       if (lrn.is_anomaly) {
         dom.learnerGuard.textContent = 'BASELINE PROTECTED (DRIFT FROZEN)';
         dom.learnerGuard.style.color = 'var(--red)';
+      } else if (!isLearningEnabled) {
+        dom.learnerGuard.textContent = 'LEARNING FROZEN (PASSIVE)';
+        dom.learnerGuard.style.color = 'var(--orange)';
       } else {
         dom.learnerGuard.textContent = 'SHIELD ARMED (3.2σ)';
         dom.learnerGuard.style.color = 'var(--blue)';
@@ -1844,6 +1876,9 @@
       } else if (!lrn.is_running) {
         dom.zMeterVal.textContent = 'Current Metric: 0.00σ (Engine Off)';
         dom.zMeterVal.style.color = 'var(--text-muted)';
+      } else if (!isLearningEnabled) {
+        dom.zMeterVal.textContent = `Current Metric: ${score.toFixed(2)}σ (Baseline Locked — Auto-Learning OFF)`;
+        dom.zMeterVal.style.color = 'var(--orange)';
       } else {
         dom.zMeterVal.textContent = `Current Metric: ${score.toFixed(2)}σ (Normal Vehicle Baseline Adaptation)`;
         dom.zMeterVal.style.color = 'var(--cyan)';
@@ -1852,6 +1887,20 @@
   }
 
   function initContinualLearnerControls() {
+    function handleToggleLearning() {
+      fetch('/api/learner/toggle_learning', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          console.log('[Learner] Toggled learning state:', data);
+        })
+        .catch(e => console.error(e));
+    }
+
+    const btnLrn = document.getElementById('btn-toggle-learning');
+    const btnLrnMain = document.getElementById('btn-toggle-learning-main');
+    if (btnLrn) btnLrn.addEventListener('click', handleToggleLearning);
+    if (btnLrnMain) btnLrnMain.addEventListener('click', handleToggleLearning);
+
     if (dom.btnToggleEngine) {
       dom.btnToggleEngine.addEventListener('click', function () {
         fetch('/api/learner/toggle_engine', { method: 'POST' })

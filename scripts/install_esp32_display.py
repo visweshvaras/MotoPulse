@@ -131,6 +131,7 @@ class MicroOnlineLearner:
         self.counts = [0, 0, 0]
         self.total_learned = 0
         self.alpha = 0.05
+        self.learning_enabled = False  # Disabled by default; user turns it ON
 
     def step(self, feat, is_running):
         if not is_running:
@@ -161,6 +162,10 @@ class MicroOnlineLearner:
         if is_anomaly:
             return "ANOMALY", self.total_learned, z_score, best_regime
 
+        # Auto-learning gate: Only adapt when user has turned auto-learning ON!
+        if not self.learning_enabled:
+            return "LOCKED", self.total_learned, z_score, best_regime
+
         self.counts[best_regime] += 1
         self.total_learned += 1
         for i in range(self.dim):
@@ -172,13 +177,27 @@ class MicroOnlineLearner:
         return "LEARNING", self.total_learned, z_score, best_regime
 
 def run_loop():
+    import sys, uselect
     i2c, addr, fb, buf, flush_display, audio, adc, buf_in, dc_piezo = init_hardware()
     learner = MicroOnlineLearner()
     decay_peak = 0
     frame_count = 0
+    spoll = uselect.poll()
+    spoll.register(sys.stdin, uselect.POLLIN)
     print("MOTOPULSE_DISPLAY_ACTIVE")
 
     while True:
+        # Check non-blocking serial commands from host
+        if spoll.poll(0):
+            try:
+                cmd_line = sys.stdin.readline().strip()
+                if cmd_line == "CMD:LRN:1":
+                    learner.learning_enabled = True
+                elif cmd_line == "CMD:LRN:0":
+                    learner.learning_enabled = False
+            except Exception:
+                pass
+
         audio.readinto(buf_in)
         frame_count += 1
 
@@ -238,6 +257,8 @@ def run_loop():
             fb.text("!WARN!", 82, 1, 0)
         elif lrn_state == "LEARNING":
             fb.text("L:" + str(lrn_count), 80, 1, 1)
+        elif not learner.learning_enabled:
+            fb.text("[FROZEN]", 64, 1, 1)
         elif is_running:
             fb.text("[RUN]", 88, 1, 1)
         else:
@@ -274,6 +295,8 @@ def run_loop():
             fb.text("ANOMALY Z=" + str(round(lrn_score, 1)), 0, 55, 1)
         elif lrn_state == "LEARNING":
             fb.text("SELF-TRAIN:" + str(lrn_count), 0, 55, 1)
+        elif not learner.learning_enabled:
+            fb.text("AUTO-LRN: OFF", 0, 55, 1)
         else:
             fb.text("M:" + str(max_amp) + " P:" + str(pz_amp), 0, 55, 1)
 
@@ -283,7 +306,7 @@ def run_loop():
             w_l = ",".join(str(left[k]) for k in range(0, 64, 2))
             w_r = ",".join(str(right[k]) for k in range(0, 64, 2))
             w_p = ",".join(str(pz_samples[k]) for k in range(0, 16))
-            print("TEL:" + str(p2p_l) + ":" + str(p2p_r) + ":" + str(grad) + ":" + str(pz_amp) + ":" + str(decay_peak) + ":" + str(dc_piezo) + ":" + w_l + ":" + w_r + ":" + w_p + ":LRN:" + str(lrn_state) + ":" + str(lrn_count) + ":" + str(round(lrn_score, 2)) + ":" + str(lrn_regime))
+            print("TEL:" + str(p2p_l) + ":" + str(p2p_r) + ":" + str(grad) + ":" + str(pz_amp) + ":" + str(decay_peak) + ":" + str(dc_piezo) + ":" + w_l + ":" + w_r + ":" + w_p + ":LRN:" + str(lrn_state) + ":" + str(lrn_count) + ":" + str(round(lrn_score, 2)) + ":" + str(lrn_regime) + ":" + ("1" if learner.learning_enabled else "0"))
 
         time.sleep_ms(10)
 

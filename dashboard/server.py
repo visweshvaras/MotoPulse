@@ -615,19 +615,23 @@ latest_telemetry = {
         "state": "RESTING / NORMAL"
     },
     "learner": {
-        "is_running": True,
-        "status": "ADAPTING_BASELINE",
+        "is_running": False,
+        "status": "BASELINE_LOCKED (OFF)",
         "regime": 0,
         "regime_name": "Idle (750 RPM)",
-        "score": 0.85,
+        "score": 0.0,
         "is_anomaly": False,
-        "learned": True,
+        "learned": False,
+        "learning_enabled": False,
         "total_learned": 0,
         "confidence": 95.0,
         "anomaly_count": 0
     },
     "prediction": latest_prediction
 }
+
+g_auto_learning_enabled = False
+g_active_serial_conn = None
 
 
 # ==============================================================================
@@ -683,6 +687,7 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
                 prof["is_running"] = g_online_learner.is_running
                 prof["anomaly_count"] = g_online_learner.anomaly_count
                 prof["sim_engine_running"] = g_sim_engine_running
+                prof["learning_enabled"] = g_auto_learning_enabled
                 self.send_json_response(prof)
             else:
                 self.send_json_response({"error": "Learner not initialized"})
@@ -701,10 +706,40 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
         self.send_error(HTTPStatus.NOT_FOUND, "Resource not found")
 
     def do_POST(self):
-        global g_sim_engine_running, g_sim_defect_frames_remaining
+        global g_sim_engine_running, g_sim_defect_frames_remaining, g_auto_learning_enabled, g_active_serial_conn
         parsed = urllib.parse.urlparse(self.path)
 
-        if parsed.path == "/api/learner/toggle_engine":
+        if parsed.path == "/api/learner/toggle_learning":
+            g_auto_learning_enabled = not g_auto_learning_enabled
+            if g_online_learner:
+                g_online_learner.learning_enabled = g_auto_learning_enabled
+            if g_active_serial_conn:
+                try:
+                    cmd_b = b"CMD:LRN:1\n" if g_auto_learning_enabled else b"CMD:LRN:0\n"
+                    g_active_serial_conn.write(cmd_b)
+                except Exception:
+                    pass
+            self.send_json_response({
+                "status": "LEARNING_TOGGLED",
+                "learning_enabled": g_auto_learning_enabled
+            })
+            return
+        elif parsed.path == "/api/learner/reset":
+            if g_online_learner:
+                g_online_learner.regime_counts.fill(0)
+                g_online_learner.total_frames_learned = 0
+                g_online_learner.anomaly_count = 0
+            if g_active_serial_conn:
+                try:
+                    g_active_serial_conn.write(b"CMD:LRN:0\n")
+                except Exception:
+                    pass
+            self.send_json_response({
+                "status": "RESET_SUCCESSFUL",
+                "total_learned": 0
+            })
+            return
+        elif parsed.path == "/api/learner/toggle_engine":
             g_sim_engine_running = not g_sim_engine_running
             self.send_json_response({
                 "status": "ENGINE_TOGGLED",
@@ -1139,15 +1174,17 @@ def telemetry_collector_thread():
                                 lrn_cnt = int(parts[12])
                                 lrn_sc = float(parts[13])
                                 lrn_reg = int(parts[14])
+                                lrn_en = (parts[15] == "1") if len(parts) > 15 else g_auto_learning_enabled
                                 regime_names = ["Idle (750 RPM)", "City Drive (1800 RPM)", "Highway Cruise (2800 RPM)"]
                                 learner_info = {
                                     "is_running": (lrn_st != "STANDBY"),
-                                    "status": "ANOMALY_DETECTED" if lrn_st == "ANOMALY" else ("LEARNING_ACTIVE" if lrn_st == "LEARNING" else "STANDBY"),
+                                    "status": "ANOMALY_DETECTED" if lrn_st == "ANOMALY" else ("LEARNING_ACTIVE" if (lrn_st == "LEARNING" and lrn_en) else ("STANDBY" if lrn_st == "STANDBY" else "BASELINE_LOCKED (OFF)")),
                                     "regime": lrn_reg,
                                     "regime_name": regime_names[lrn_reg % len(regime_names)],
                                     "score": lrn_sc,
                                     "is_anomaly": (lrn_st == "ANOMALY"),
-                                    "learned": (lrn_st == "LEARNING"),
+                                    "learned": (lrn_st == "LEARNING" and lrn_en),
+                                    "learning_enabled": lrn_en,
                                     "total_learned": lrn_cnt,
                                     "confidence": 94.0 if lrn_cnt > 10 else 50.0,
                                     "engine_state": "ON_DEVICE_ESP32",
@@ -1330,12 +1367,13 @@ def telemetry_collector_thread():
 
             learner_info = {
                 "is_running": step_res["is_running"],
-                "status": step_res["status"],
+                "status": step_res["status"] if g_auto_learning_enabled else "BASELINE_LOCKED (OFF)",
                 "regime": regime_id,
                 "regime_name": regime_names[regime_id % len(regime_names)],
                 "score": step_res.get("score", 0.0),
                 "is_anomaly": step_res.get("is_anomaly", False),
                 "learned": step_res.get("learned", False),
+                "learning_enabled": g_auto_learning_enabled,
                 "total_learned": g_online_learner.total_frames_learned,
                 "confidence": round(g_online_learner.running_confidence * 100, 1),
                 "anomaly_count": g_online_learner.anomaly_count
