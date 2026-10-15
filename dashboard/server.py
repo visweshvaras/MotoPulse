@@ -866,43 +866,87 @@ for _ in range(9):
     scl_rec.value(1)
     time.sleep_us(5)
 
-# 400 kHz I2C for rock-solid signal integrity
-i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=400000)
-
+# 100 kHz I2C for rock-solid signal integrity with PCF8574 LCD and OLEDs
+i2c = machine.I2C(0, scl=machine.Pin(8), sda=machine.Pin(9), freq=100000)
 devs = i2c.scan()
-addr = 0x3C
-if 0x3D in devs and 0x3C not in devs:
-    addr = 0x3D
 
-temp = bytearray(2)
-temp[0] = 0x80
-def write_cmd(c):
-    temp[1] = c
-    try: i2c.writeto(addr, temp)
-    except: pass
+# HD44780 16x2 Character LCD Driver via PCF8574 I2C Backpack
+class I2cLcd1602:
+    def __init__(self, i2c, addr):
+        self.i2c = i2c
+        self.addr = addr
+        self.backlight = 0x08  # Bit 3 = Backlight ON
+        self.init_lcd()
+    def write_nibble(self, nibble, rs=0):
+        val = (nibble << 4) | self.backlight | rs
+        self.i2c.writeto(self.addr, bytearray([val | 0x04]))
+        time.sleep_us(400)
+        self.i2c.writeto(self.addr, bytearray([val & ~0x04]))
+        time.sleep_us(100)
+    def write_byte(self, byte, rs=0):
+        self.write_nibble((byte >> 4) & 0x0F, rs)
+        self.write_nibble(byte & 0x0F, rs)
+    def cmd(self, c):
+        self.write_byte(c, rs=0)
+        if c in (0x01, 0x02): time.sleep_ms(2)
+    def write_char(self, c):
+        self.write_byte(ord(c), rs=1)
+    def init_lcd(self):
+        time.sleep_ms(50)
+        for _ in range(3):
+            self.write_nibble(0x03)
+            time.sleep_ms(5)
+        self.write_nibble(0x02)
+        time.sleep_ms(2)
+        self.cmd(0x28) # 2 lines, 5x8 dots
+        self.cmd(0x0C) # Display ON, Cursor OFF
+        self.cmd(0x06) # Auto increment
+        self.cmd(0x01) # Clear display
+        time.sleep_ms(2)
+    def set_line(self, row, text):
+        offsets = [0x00, 0x40]
+        self.cmd(0x80 | offsets[row % 2])
+        padded = (text + " " * 16)[:16]
+        for ch in padded:
+            self.write_char(ch)
 
-# Universal initialization: works on both SSD1306 and SH1106
-for c in (
-    0xAE, 0xD5, 0x80, 0xA8, 63, 0xD3, 0x00, 0x40,
-    0x8D, 0x14, 0xAD, 0x8B, 0x30, 0x33,
-    0xA1, 0xC8, 0xDA, 0x12, 0x81, 0xFF,
-    0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF
-):
-    write_cmd(c)
-
-buf = bytearray(128 * 8)
-fb = framebuf.FrameBuffer(buf, 128, 64, framebuf.MONO_VLSB)
-
-def flush_display():
-    for p in range(8):
-        write_cmd(0xB0 + p)
-        write_cmd(0x02)
-        write_cmd(0x10)
-        page_slice = buf[p * 128 : (p + 1) * 128]
+lcd_1602 = None
+for cand in (0x27, 0x3F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x38, 0x39):
+    if cand in devs:
         try:
-            i2c.writevto(addr, [b"\\x40", page_slice])
-        except Exception:
-            pass
+            lcd_1602 = I2cLcd1602(i2c, cand)
+            lcd_1602.set_line(0, "MOTOPULSE AI")
+            lcd_1602.set_line(1, "16x2 LCD ACTIVE!")
+            break
+        except: pass
+
+oled_fb = None
+flush_display = None
+if not lcd_1602:
+    for cand in (0x3C, 0x3D):
+        if cand in devs:
+            try:
+                addr = cand
+                temp = bytearray(2)
+                temp[0] = 0x80
+                def write_cmd(c):
+                    temp[1] = c
+                    try: i2c.writeto(addr, temp)
+                    except: pass
+                for c in (0xAE, 0xD5, 0x80, 0xA8, 63, 0xD3, 0x00, 0x40, 0x8D, 0x14, 0xAD, 0x8B, 0x30, 0x33, 0xA1, 0xC8, 0xDA, 0x12, 0x81, 0xFF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF):
+                    write_cmd(c)
+                buf = bytearray(128 * 8)
+                oled_fb = framebuf.FrameBuffer(buf, 128, 64, framebuf.MONO_VLSB)
+                def _flush():
+                    for p in range(8):
+                        write_cmd(0xB0 + p)
+                        write_cmd(0x02)
+                        write_cmd(0x10)
+                        try: i2c.writevto(addr, [b"\\x40", buf[p * 128 : (p + 1) * 128]])
+                        except: pass
+                flush_display = _flush
+                break
+            except: pass
 
 # 16kHz Stereo I2S INMP441 Microphone (SCK=4, WS=5, SD=6)
 audio = machine.I2S(
@@ -970,44 +1014,57 @@ while True:
     is_running = (max_amp > 800) or (decay_peak > 180)
     is_anomaly = (decay_peak > 1400) or (max_amp > 8500 and grad > 45)
 
-    # Render OLED Frame (30 FPS)
-    fb.fill(0)
-    fb.text("MOTOPULSE", 0, 1, 1)
-    if is_anomaly:
-        fb.fill_rect(82, 0, 46, 10, 1)
-        fb.text("!WARN", 84, 1, 0)
-    elif is_running:
-        fb.text("[RUN]", 88, 1, 1)
-    else:
-        fb.text("[IDLE]", 80, 1, 1)
-    fb.hline(0, 11, 128, 1)
+    # 1. Update 16x2 LCD if connected (at ~10 FPS for crisp LCD crystal refresh)
+    if lcd_1602 and (frame_count % 3 == 0):
+        try:
+            r0 = "MOTOPULSE !WARN" if is_anomaly else ("MOTOPULSE  [RUN]" if is_running else "MOTOPULSE [IDLE]")
+            if is_anomaly:
+                r1 = "KNOCK / DEFECT! "
+            elif is_running:
+                r1 = "V:" + str(pz_amp) + " M:" + str(max_amp)
+            else:
+                r1 = "HEALTH: GOOD OK "
+            lcd_1602.set_line(0, r0)
+            lcd_1602.set_line(1, r1)
+        except: pass
 
-    # Waveform trace
-    center_y = 30
-    scale = 16.0 / max(800, max_amp)
-    prev_y = center_y
-    for x in range(min(64, len(left))):
-        val = left[x]
-        y = center_y - int(val * scale)
-        if y < 13: y = 13
-        elif y > 48: y = 48
-        fb.line(x * 2, prev_y, x * 2 + 1, y, 1)
-        prev_y = y
+    # 2. Update OLED if connected
+    elif oled_fb and flush_display:
+        try:
+            oled_fb.fill(0)
+            oled_fb.text("MOTOPULSE", 0, 1, 1)
+            if is_anomaly:
+                oled_fb.fill_rect(82, 0, 46, 10, 1)
+                oled_fb.text("!WARN", 84, 1, 0)
+            elif is_running:
+                oled_fb.text("[RUN]", 88, 1, 1)
+            else:
+                oled_fb.text("[IDLE]", 80, 1, 1)
+            oled_fb.hline(0, 11, 128, 1)
 
-    # Lower VU Meters
-    audio_bar_w = min(60, int((max_amp / 7000.0) * 60))
-    fb.rect(0, 52, 62, 5, 1)
-    if audio_bar_w > 0:
-        fb.fill_rect(1, 53, audio_bar_w, 3, 1)
+            center_y = 30
+            scale = 16.0 / max(800, max_amp)
+            prev_y = center_y
+            for x in range(min(64, len(left))):
+                val = left[x]
+                y = center_y - int(val * scale)
+                if y < 13: y = 13
+                elif y > 48: y = 48
+                oled_fb.line(x * 2, prev_y, x * 2 + 1, y, 1)
+                prev_y = y
 
-    pz_bar_w = min(60, int((decay_peak / 1500.0) * 60))
-    fb.rect(66, 52, 62, 5, 1)
-    if pz_bar_w > 0:
-        fb.fill_rect(67, 53, pz_bar_w, 3, 1)
+            audio_bar_w = min(60, int((max_amp / 7000.0) * 60))
+            oled_fb.rect(0, 52, 62, 5, 1)
+            if audio_bar_w > 0: oled_fb.fill_rect(1, 53, audio_bar_w, 3, 1)
 
-    fb.text("MIC", 18, 57, 1)
-    fb.text("PIEZO", 80, 57, 1)
-    flush_display()
+            pz_bar_w = min(60, int((decay_peak / 1500.0) * 60))
+            oled_fb.rect(66, 52, 62, 5, 1)
+            if pz_bar_w > 0: oled_fb.fill_rect(67, 53, pz_bar_w, 3, 1)
+
+            oled_fb.text("MIC", 18, 57, 1)
+            oled_fb.text("PIEZO", 80, 57, 1)
+            flush_display()
+        except: pass
     
     w_l = ",".join(str(left[k]) for k in range(0, 64, 2))
     w_r = ",".join(str(right[k]) for k in range(0, 64, 2))
