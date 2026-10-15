@@ -1478,6 +1478,9 @@
       }
     }
 
+    // Attempt direct microphone acquisition if permission already granted
+    startMicCapture();
+
     // Auto-attempt start on first user interaction on dashboard
     const unlockEvents = ['click', 'pointerdown', 'keydown', 'touchstart'];
     function onGesture() {

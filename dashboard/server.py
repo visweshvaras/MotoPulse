@@ -1164,22 +1164,13 @@ def telemetry_collector_thread():
                             is_browser_audio_active = (time.time() - g_last_browser_audio_time) < 3.0
 
                             if not is_browser_audio_active:
-                                # When ambient noise is low (<3000 counts), keep buffer clear in standby
-                                if max_amp < 3000:
-                                    cur_window = np.zeros(16000, dtype=np.float32)
-                                else:
-                                    new_pcm_floats = np.array(raw_wl, dtype=np.float32) / 32768.0
-                                    with g_audio_window_lock:
-                                        shift_len = len(new_pcm_floats)
-                                        g_audio_window[:-shift_len] = g_audio_window[shift_len:]
-                                        g_audio_window[-shift_len:] = new_pcm_floats
-                                        cur_window = np.copy(g_audio_window)
-
-                                # Run TinyML Predictive Prognostics Inference every 150ms
+                                # The serial interface only transmits low-rate (35 FPS) oscilloscope display snapshots
+                                # of 32 samples for UI rendering, not full 16 kHz audio bandwidth.
+                                # Keep the predictive engine in STANDBY until the browser microphone or audio stream is active.
                                 now = time.time()
-                                if (now - last_infer_time) >= 0.15:
+                                if (now - last_infer_time) >= 0.5:
                                     last_infer_time = now
-                                    latest_prediction = g_predictive_engine.predict(cur_window, pz_amp)
+                                    latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp)
                                     g_diagnostic_engine.add_prediction(latest_prediction)
 
                             now = time.time()
