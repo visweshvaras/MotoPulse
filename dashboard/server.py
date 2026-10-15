@@ -193,7 +193,7 @@ class TinyMLPredictiveEngine:
         # Peak normalize to [-0.95, 0.95] only if signal contains real acoustic energy
         # Never amplify microvolt electrical noise floor into false defects!
         max_val = np.max(np.abs(pcm_16k))
-        if max_val >= 0.050:
+        if max_val >= 0.020:
             pcm_16k = (pcm_16k / max_val) * 0.95
 
         frames = np.lib.stride_tricks.sliding_window_view(pcm_16k, self.frame_len)[::self.frame_step]
@@ -1028,6 +1028,10 @@ def feed_browser_audio(samples):
         g_audio_window[:-shift_len] = g_audio_window[shift_len:]
         g_audio_window[-shift_len:] = samples[-shift_len:]
         cur_window = np.copy(g_audio_window)
+
+    if not os.path.exists("/tmp/live_debug_audio.wav") and np.max(np.abs(cur_window)) > 0.05:
+        import soundfile as sf
+        sf.write("/tmp/live_debug_audio.wav", cur_window, 16000)
 
     pred = g_predictive_engine.predict(cur_window)
     g_diagnostic_engine.add_prediction(pred)

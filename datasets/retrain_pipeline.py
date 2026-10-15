@@ -113,9 +113,10 @@ def load_audio_normalized(file_path):
         data = np.mean(data, axis=1)
 
     if sr != TARGET_SAMPLE_RATE:
-        # Resample via linear interpolation
+        # High quality anti-aliased resampling using scipy
+        import scipy.signal as signal
         new_len = int(len(data) * TARGET_SAMPLE_RATE / sr)
-        data = np.interp(np.linspace(0, len(data), new_len, endpoint=False), np.arange(len(data)), data).astype(np.float32)
+        data = signal.resample(data, new_len).astype(np.float32)
 
     # Discard if pure digital silence or corrupted
     rms = np.sqrt(np.mean(data ** 2))
@@ -134,9 +135,12 @@ def scan_and_catalog_files():
     for f in glob.glob(os.path.join(DATASETS_DIR, "raw", "pravruthi_2.0", "training", "*.wav")) + \
              glob.glob(os.path.join(DATASETS_DIR, "raw", "pravruthi_2.0", "testing", "*.wav")):
         fn = os.path.basename(f).lower()
-        if "idling" in fn or "normal engine" in fn or "background noise" in fn or "air leak engine" in fn:
+        if ("idling" in fn or "normal engine" in fn) and "air leak" not in fn and "background" not in fn:
             catalog["normal_idle"].append(f)
     catalog["normal_idle"].append(os.path.join(DATASETS_DIR, "11.maindataset", "fault data set pree", "soumages-car-engine-335601.mp3"))
+    user_sound = os.path.join(DATASETS_DIR, "raw", "user_real_engine_normal_sound.wav")
+    if os.path.exists(user_sound):
+        catalog["normal_idle"].append(user_sound)
 
     # 2. Engine Knocking (Connecting rod knock, piston slap, pre-ignition detonation)
     for pattern in ["Fault_01_*.wav", "Fault_03_*.wav", "Fault_14_*.wav", "Fault_25_*.wav", "01_engine_knocking.wav", "knocking_honda_*.wav"]:
@@ -160,7 +164,7 @@ def scan_and_catalog_files():
 
     # 6. Exhaust Leak (Exhaust manifold leak, blown head gasket chuff, muffler hole)
     for pattern in ["Fault_02_*.wav", "Fault_28_*.wav", "Fault_21_*.wav", "02_exhaust_leak_chuffing.wav",
-                    "13_exhaust_heat_shield*.wav", "VEHCar_Damaged muffler*.wav", "Fault_17_*.wav"]:
+                    "13_exhaust_heat_shield*.wav", "VEHCar_Damaged muffler*.wav", "Fault_17_*.wav", "air leak*.wav"]:
         catalog["exhaust_leak"].extend(glob.glob(os.path.join(DATASETS_DIR, "**", pattern), recursive=True))
 
     # 7. Misfire (Cylinder combustion quench, rough loping misfire, dropped spark)
@@ -188,13 +192,18 @@ def extract_windows_for_class(file_list, class_name, target_count, mel_fb, windo
     """
     Loads files for a class, extracts 1.0s windows, applies amplitude normalization,
     and performs balanced augmentation to reach target_count windows.
+    Guarantees both clean real-world acoustic windows and speaker/phone spectral tilt augmentation.
     """
+    import scipy.signal as signal
     raw_windows = []
     
     for f in file_list:
         audio = load_audio_normalized(f)
         if audio is None or len(audio) < 4000:
             continue
+
+        # If this is the captured live engine sound, generate speed & pitch perturbations
+        is_user_live_sound = "user_real_engine" in os.path.basename(f)
 
         if len(audio) < WINDOW_SAMPLES:
             pad = WINDOW_SAMPLES - len(audio)
@@ -221,49 +230,70 @@ def extract_windows_for_class(file_list, class_name, target_count, mel_fb, windo
 
             raw_windows.append(chunk)
 
+            # If user live sound, perturb speed and add multiple offsets
+            if is_user_live_sound:
+                for speed in [0.88, 0.92, 0.95, 0.98, 1.02, 1.05, 1.08, 1.12]:
+                    new_l = int(len(chunk) / speed)
+                    res = signal.resample(chunk, new_l).astype(np.float32)
+                    res_fixed = np.tile(res, int(np.ceil(WINDOW_SAMPLES / len(res))))[:WINDOW_SAMPLES]
+                    m_val = np.max(np.abs(res_fixed))
+                    if m_val >= 0.025:
+                        res_fixed = (res_fixed / m_val) * 0.95
+                    raw_windows.append(res_fixed)
+                    # Add circular shifts
+                    raw_windows.append(np.roll(res_fixed, 4000))
+                    raw_windows.append(np.roll(res_fixed, 8000))
+                    raw_windows.append(np.roll(res_fixed, 12000))
+
     if not raw_windows:
         raise ValueError(f"No valid audio windows found for class {class_name}!")
 
     print(f"   [{class_name}] Extracted {len(raw_windows)} clean raw windows. Target = {target_count}.")
 
-    # Augment or downsample to reach target_count
+    # Balanced representation and augmentation:
+    # 50% clean raw recordings from diverse vehicles + 50% augmented (simulated phone speakers, noise, tilt)
     final_features = []
     np.random.seed(42)
 
-    if len(raw_windows) >= target_count:
-        # Uniformly sample across ALL files to ensure every car make, RPM, and cabin audio is represented
-        chosen_indices = np.random.choice(len(raw_windows), target_count, replace=False)
-        for idx in chosen_indices:
-            feat = extract_logmel(raw_windows[idx], mel_fb, window_fn)
-            final_features.append(feat)
-    else:
-        # Add all raw windows first
-        for chunk in raw_windows:
-            feat = extract_logmel(chunk, mel_fb, window_fn)
-            final_features.append(feat)
+    num_clean = min(int(target_count * 0.50), len(raw_windows))
+    chosen_clean = np.random.choice(len(raw_windows), num_clean, replace=False if len(raw_windows) >= num_clean else True)
+    for idx in chosen_clean:
+        feat = extract_logmel(raw_windows[idx], mel_fb, window_fn)
+        # Apply subtle random spectral tilt to 25% of clean features to reflect mic calibration differences
+        if np.random.random() < 0.25:
+            tilt_slope = np.random.uniform(-0.10, 0.10)
+            tilt = np.linspace(-tilt_slope, tilt_slope, N_MELS, dtype=np.float32)
+            feat = feat + tilt.reshape(1, N_MELS, 1)
+        final_features.append(feat)
 
-    # If need more, augment with time shift, slight noise, volume jitter, and pitch modulation
+    # Augment remaining windows with time shift, volume jitter, room noise, and speaker tilt
     idx = 0
     num_raw = len(raw_windows)
     while len(final_features) < target_count:
         base_chunk = raw_windows[idx % num_raw].copy()
         
         # 1. Circular roll (time shift)
-        shift = np.random.randint(-2000, 2000)
+        shift = np.random.randint(-4000, 4000)
         aug_chunk = np.roll(base_chunk, shift)
 
-        # 2. Volume scaling (random gain 0.5 to 1.0)
-        gain = np.random.uniform(0.55, 1.0)
+        # 2. Volume scaling (random gain 0.5 to 1.1)
+        gain = np.random.uniform(0.5, 1.1)
         aug_chunk = aug_chunk * gain
 
-        # 3. Subtle background pink/white noise (SNR 25-35 dB)
-        noise_level = np.random.uniform(0.002, 0.008)
+        # 3. Background noise (ambient room / mic floor, SNR 20-35 dB)
+        noise_level = np.random.uniform(0.002, 0.010)
         aug_chunk = aug_chunk + np.random.normal(0, noise_level, len(aug_chunk)).astype(np.float32)
 
         feat = extract_logmel(aug_chunk, mel_fb, window_fn)
 
-        # 4. Occasional SpecAugment frequency masking (mask 1-2 Mel bands)
-        if np.random.random() < 0.35:
+        # 4. Spectral Tilt / Speaker EQ simulation (simulates phone/laptop speaker vs studio)
+        if np.random.random() < 0.70:
+            tilt_slope = np.random.uniform(-0.20, 0.20)
+            tilt = np.linspace(-tilt_slope, tilt_slope, N_MELS, dtype=np.float32)
+            feat = feat + tilt.reshape(1, N_MELS, 1)
+
+        # 5. SpecAugment frequency masking (mask 1-2 Mel bands)
+        if np.random.random() < 0.30:
             band = np.random.randint(0, 31)
             feat[:, band:band+2, 0] = -12.0
 
@@ -476,7 +506,7 @@ def main():
     # 2. Extract balanced windows for each class
     # Generous allocation for normal_idle (Good sound) to recognize all RPMs, cabin, idle
     TARGET_COUNTS = {
-        "normal_idle": 1200,      # GOOD ENGINE SOUND
+        "normal_idle": 1800,     # GOOD ENGINE SOUND (Rich variation across makes, RPMs, speaker EQ)
         "engine_knocking": 600,   # BAD DEFECT
         "bearing_wear": 600,      # BAD DEFECT
         "valve_ticking": 600,     # BAD DEFECT

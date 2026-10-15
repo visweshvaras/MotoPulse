@@ -1404,15 +1404,19 @@
         });
 
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        micCtx = new AudioContextClass();
+        try {
+          micCtx = new AudioContextClass({ sampleRate: 16000 });
+        } catch (_) {
+          micCtx = new AudioContextClass();
+        }
         if (micCtx.state === 'suspended') {
           await micCtx.resume();
         }
 
         const nativeSr = micCtx.sampleRate;
         micSource = micCtx.createMediaStreamSource(stream);
-        // 4096 samples at 48kHz is ~85ms; at 16kHz is ~256ms
-        micProcessor = micCtx.createScriptProcessor(4096, 1, 1);
+        // 2048 samples at 16kHz is ~128ms; at 48kHz is ~42ms
+        micProcessor = micCtx.createScriptProcessor(2048, 1, 1);
 
         micProcessor.onaudioprocess = function (e) {
           const input = e.inputBuffer.getChannelData(0);
@@ -1426,8 +1430,12 @@
             const newLen = Math.floor(input.length / ratio);
             pcm16k = new Float32Array(newLen);
             for (let i = 0; i < newLen; i++) {
-              const srcIdx = Math.floor(i * ratio);
-              pcm16k[i] = input[srcIdx] || 0.0;
+              const srcPos = i * ratio;
+              const srcIdx = Math.floor(srcPos);
+              const frac = srcPos - srcIdx;
+              const s0 = input[srcIdx] || 0.0;
+              const s1 = input[srcIdx + 1] || s0;
+              pcm16k[i] = s0 + frac * (s1 - s0);
             }
           }
 
@@ -1442,17 +1450,12 @@
             dom.earDbLevel.textContent = `Live Mic: ${db.toFixed(1)} dBFS`;
           }
 
-          // Throttle sending to ~100ms intervals
-          const now = performance.now();
-          if (now - lastSendTime >= 95) {
-            lastSendTime = now;
-            const pcmArray = Array.from(pcm16k);
-            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-              state.ws.send(JSON.stringify({
-                type: "audio_pcm",
-                pcm: pcmArray
-              }));
-            }
+          // Gapless streaming: Send every audio buffer sequentially without dropping frames
+          if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            state.ws.send(JSON.stringify({
+              type: "audio_pcm",
+              pcm: Array.from(pcm16k)
+            }));
           }
         };
 
