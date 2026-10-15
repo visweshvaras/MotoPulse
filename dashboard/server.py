@@ -187,6 +187,9 @@ class TinyMLPredictiveEngine:
         elif len(pcm_16k) > 16000:
             pcm_16k = pcm_16k[-16000:]
 
+        # Remove microphone hardware DC bias
+        pcm_16k = pcm_16k - np.mean(pcm_16k)
+
         # Peak normalize to [-0.95, 0.95] only if signal contains real acoustic energy
         # Never amplify microvolt electrical noise floor into false defects!
         max_val = np.max(np.abs(pcm_16k))
@@ -209,12 +212,13 @@ class TinyMLPredictiveEngine:
         return tensor_4d, spec_norm
 
     def predict(self, pcm_16k, piezo_amp=0.0, is_simulated_defect=False):
-        # Strict Acoustic Energy Gating & Silence/Standby Detector
-        rms = float(np.sqrt(np.mean(pcm_16k ** 2)))
-        peak = float(np.max(np.abs(pcm_16k)))
+        # Remove hardware microphone DC bias before calculating acoustic energy
+        ac_signal = pcm_16k - np.mean(pcm_16k)
+        rms = float(np.sqrt(np.mean(ac_signal ** 2)))
+        peak = float(np.max(np.abs(ac_signal)))
 
         # If audio energy is below threshold and no mechanical impact, report Standby
-        if rms < 0.008 and peak < 0.025 and piezo_amp < 120.0 and not is_simulated_defect:
+        if (rms < 0.008 or peak < 0.025) and piezo_amp < 120.0 and not is_simulated_defect:
             self.ema_probs = None
             return {
                 "health_state": "STANDBY",
