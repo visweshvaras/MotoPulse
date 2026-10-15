@@ -34,8 +34,18 @@ show_menu() {
     echo -n "Select an option [1-11]: "
 }
 
+release_serial_port() {
+    local pids=$(fuser "$PORT" 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+        echo "⚠️  Releasing $PORT currently held by process: $pids (stopping background server)..."
+        fuser -k "$PORT" 2>/dev/null || true
+        sleep 1
+    fi
+}
+
 run_live_feed() {
     clear
+    release_serial_port
     echo "Starting Live Mic Audio Monitor... (Press Ctrl+C to stop)"
     python3 "$DIR/live_mic_feed.py"
     echo -e "\nPress Enter to return to menu..."
@@ -44,6 +54,7 @@ run_live_feed() {
 
 run_live() {
     clear
+    release_serial_port
     echo "Starting Live INMP441 Sound Meter... (Press Ctrl+C to stop)"
     python3 "$DIR/test_inmp441_live.py"
     echo -e "\nPress Enter to return to menu..."
@@ -52,6 +63,7 @@ run_live() {
 
 run_oled_spectrum() {
     clear
+    release_serial_port
     echo "Launching OLED Live Oscilloscope Waveform... (Press Ctrl+C to stop)"
     python3 "/home/vishwa/Documents/hacktivate/oled_spectrum/live_spectrum_oled.py"
     echo -e "\nPress Enter to return to menu..."
@@ -60,6 +72,7 @@ run_oled_spectrum() {
 
 run_50cm_demo() {
     clear
+    release_serial_port
     echo "Launching 50cm Near-Field Perimeter Gate... (Press Ctrl+C to stop)"
     python3 "/home/vishwa/Documents/hacktivate/near_field_demo/demo_50cm_perimeter.py"
     echo -e "\nPress Enter to return to menu..."
@@ -68,6 +81,7 @@ run_50cm_demo() {
 
 run_piezo() {
     clear
+    release_serial_port
     echo "Launching Piezoelectric Vibration & Knock Monitor... (Press Ctrl+C to stop)"
     python3 "/home/vishwa/Documents/hacktivate/piezo_test/test_piezo_live.py"
     echo -e "\nPress Enter to return to menu..."
@@ -84,6 +98,7 @@ run_dashboard() {
 
 run_record_3() {
     clear
+    release_serial_port
     echo "Recording 3 seconds of high-fidelity audio..."
     python3 "$DIR/record_inmp441.py" --seconds 3
     echo -e "\nPress Enter to return to menu..."

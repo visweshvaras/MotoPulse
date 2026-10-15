@@ -68,11 +68,26 @@ while True:
     sys.stdout.buffer.write(buf_out)
 """
 
+def check_and_free_port(port):
+    """Release port if held by another process (e.g. background dashboard server)."""
+    try:
+        res = subprocess.run(["fuser", port], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        pids = [int(p) for p in res.stdout.split() if p.isdigit() and int(p) != os.getpid()]
+        if pids:
+            print(f"⚠️  Serial port {port} is held by process {pids} (e.g. Dashboard background server).")
+            print("   Releasing port for exclusive test bench access...")
+            subprocess.run(["fuser", "-k", port], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(1.0)
+    except Exception:
+        pass
+
 def main():
     print("=" * 68)
     print("   🎧 ESP32-S3 + INMP441 REAL-TIME LIVE MIC FEED MONITOR    ")
     print("   Streams live audio to PC speakers & renders live VU meter ")
     print("=" * 68)
+
+    check_and_free_port(PORT)
 
     # Check for aplay or alternative audio player
     has_aplay = shutil.which("aplay") is not None

@@ -2,20 +2,38 @@
 """
 Live Sound Visualizer for ESP32-S3 + INMP441 Digital I2S Microphone
 Displays real-time VU meter with clean channel separation and zero DC distortion.
+Automatically frees serial port contention and handles transient read drops gracefully.
 """
 
 import sys
 import time
+import subprocess
+import os
 import serial
 
 PORT = "/dev/ttyACM0"
 BAUD = 115200
+
+def check_and_free_port(port):
+    """Release port if held by another process (e.g. background dashboard server)."""
+    try:
+        res = subprocess.run(["fuser", port], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        pids = [int(p) for p in res.stdout.split() if p.isdigit() and int(p) != os.getpid()]
+        if pids:
+            print(f"⚠️  Serial port {port} is in use by process {pids} (e.g. Dashboard background server).")
+            print("   Releasing port for exclusive test bench access...")
+            subprocess.run(["fuser", "-k", port], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(1.0)
+    except Exception:
+        pass
 
 def main():
     print("=" * 65)
     print("   🎙️  INMP441 DIGITAL I2S MICROPHONE LIVE SOUND METER      ")
     print("   Sample Rate: 16,000 Hz | Zero-Distortion AC Filtered     ")
     print("=" * 65)
+
+    check_and_free_port(PORT)
 
     try:
         ser = serial.Serial(PORT, BAUD, timeout=1)
@@ -71,39 +89,71 @@ while True:
     print("\nListening to INMP441 on I2S (GPIO 4, 5, 6)...")
     print("Speak, snap fingers, or play music! (Press Ctrl+C to stop)\n")
 
+    consecutive_errors = 0
     try:
         while True:
-            line = ser.readline().decode('utf-8', errors='ignore').strip()
+            try:
+                line = ser.readline().decode('utf-8', errors='ignore').strip()
+                consecutive_errors = 0
+            except serial.SerialException:
+                consecutive_errors += 1
+                if consecutive_errors > 20:
+                    print("\n[WARNING] Serial connection lost. Attempting to recover...")
+                    time.sleep(0.5)
+                    ser.close()
+                    time.sleep(0.5)
+                    ser.open()
+                    consecutive_errors = 0
+                time.sleep(0.05)
+                continue
+
+            if not line:
+                continue
+
+            p2p = None
+            p2p_r = 0
             if line.startswith("VU:"):
                 parts = line.split(":")
-                p2p = int(parts[1])
-                p2p_r = int(parts[2]) if len(parts) > 2 else 0
-                
-                # Dynamic visual meter (0 to 30 chars)
-                bar_len = min(30, max(0, int(p2p / 120)))
-                bar = "=" * bar_len + " " * (30 - bar_len)
+                if len(parts) > 1 and parts[1].isdigit():
+                    p2p = int(parts[1])
+                    p2p_r = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+            elif line.startswith("TEL:"):
+                parts = line.split(":")
+                if len(parts) > 2 and parts[1].isdigit():
+                    p2p = int(parts[1])
+                    p2p_r = int(parts[2]) if parts[2].isdigit() else 0
 
-                status = "🤫 Quiet / Ambient"
-                if p2p > 3000:
-                    status = "🔥🔥 LOUD SOUND / CLAP!"
-                elif p2p > 600:
-                    status = "🗣️ VOICE DETECTED"
-                elif p2p > 150:
-                    status = "🎵 Soft Audio"
+            if p2p is None:
+                continue
 
-                # If secondary mic is active, show both
-                if p2p_r > 300:
-                    r_bar_len = min(15, max(0, int(p2p_r / 200)))
-                    r_bar = "=" * r_bar_len + " " * (15 - r_bar_len)
-                    print(f"\rVU [Mic1]: [{bar}] {p2p:5d} | [Mic2]: [{r_bar}] {p2p_r:5d} | {status:<20}", end="", flush=True)
-                else:
-                    print(f"\rVU: [{bar}] | Peak: {p2p:6d} | {status:<25}", end="", flush=True)
+            # Dynamic visual meter (0 to 30 chars)
+            bar_len = min(30, max(0, int(p2p / 120)))
+            bar = "=" * bar_len + " " * (30 - bar_len)
+
+            status = "🤫 Quiet / Ambient"
+            if p2p > 3000:
+                status = "🔥🔥 LOUD SOUND / CLAP!"
+            elif p2p > 600:
+                status = "🗣️ VOICE DETECTED"
+            elif p2p > 150:
+                status = "🎵 Soft Audio"
+
+            # If secondary mic is active, show both
+            if p2p_r > 300:
+                r_bar_len = min(15, max(0, int(p2p_r / 200)))
+                r_bar = "=" * r_bar_len + " " * (15 - r_bar_len)
+                print(f"\rVU [Mic1]: [{bar}] {p2p:5d} | [Mic2]: [{r_bar}] {p2p_r:5d} | {status:<20}", end="", flush=True)
+            else:
+                print(f"\rVU: [{bar}] | Peak: {p2p:6d} | {status:<25}", end="", flush=True)
     except KeyboardInterrupt:
         print("\n\nStopped by user.")
-        ser.write(b'\r\x03\r\x02\r\x04')
-        time.sleep(0.1)
-        ser.close()
-        print("On-device MotoPulse display resumed.")
+        try:
+            ser.write(b'\r\x03\r\x02\r\x04')
+            time.sleep(0.2)
+            ser.close()
+        except Exception:
+            pass
+        print("On-device MotoPulse firmware resumed.")
 
 if __name__ == "__main__":
     main()
