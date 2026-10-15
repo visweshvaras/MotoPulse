@@ -1258,53 +1258,55 @@ def telemetry_collector_thread():
                                     "anomaly_count": g_online_learner.anomaly_count
                                 }
 
-                                diag_status = g_diagnostic_engine.get_status()
-                                active_pred = diag_status["fixed_diagnosis"] if diag_status["is_locked"] else latest_prediction
-                                latest_prediction = active_pred
-                                latest_telemetry = {
-                                    "timestamp": time.time(),
-                                    "source": "hardware",
-                                    "fps": 36,
-                                    "p2p_l": p2p_l,
-                                    "p2p_r": p2p_r,
-                                    "mic1": p2p_l,
-                                    "mic2": p2p_r,
-                                    "mic1_peak": p2p_l,
-                                    "mic2_peak": p2p_r,
-                                    "piezo_p2p": pz_amp,
-                                    "piezo_amp": pz_amp,
-                                    "piezo_raw": pz_base + (pz_amp if knock_detected else 0),
-                                    "piezo_base": pz_base,
-                                    "grad_pct": grad,
-                                    "gradient": grad,
-                                    "gradient_pct": grad,
-                                    "status": "NEAR" if is_near else ("FAR" if max_amp > ambient * 2 else "ARMED"),
-                                    "is_near": is_near,
+                            diag_status = g_diagnostic_engine.get_status()
+                            active_pred = diag_status["fixed_diagnosis"] if diag_status["is_locked"] else latest_prediction
+
+                            with state_lock:
+                                # Always update real-time hardware piezoelectric sensor vibration telemetry
+                                latest_telemetry["piezo_p2p"] = pz_amp
+                                latest_telemetry["piezo_amp"] = pz_amp
+                                latest_telemetry["piezo_raw"] = pz_base + (pz_amp if knock_detected else 0)
+                                latest_telemetry["piezo_base"] = pz_base
+                                latest_telemetry["knock"] = knock_detected
+                                latest_telemetry["piezo"] = {
+                                    "baseline": pz_base,
+                                    "amplitude": pz_amp,
+                                    "peak_hold": pz_peak,
                                     "knock": knock_detected,
-                                    "distance_cm": round(dist_cm, 1),
-                                    "wave_l": norm_wl,
-                                    "wave_r": norm_wr,
-                                    "audio_pcm": raw_wl,  # Raw PCM samples for in-browser live listening
-                                    "spectrum_32": active_pred.get("spectrum_32", [0.05]*32),
-                                    "prediction": active_pred,
-                                    "diagnostic_session": diag_status,
-                                    "gate": {
+                                    "state": vibe_state
+                                }
+                                latest_telemetry["learner"] = learner_info
+
+                                # If browser microphone is not actively streaming audio, update acoustic telemetry from hardware
+                                if not is_browser_audio_active:
+                                    latest_telemetry["source"] = "hardware"
+                                    latest_telemetry["fps"] = 36
+                                    latest_telemetry["p2p_l"] = p2p_l
+                                    latest_telemetry["p2p_r"] = p2p_r
+                                    latest_telemetry["mic1"] = p2p_l
+                                    latest_telemetry["mic2"] = p2p_r
+                                    latest_telemetry["mic1_peak"] = p2p_l
+                                    latest_telemetry["mic2_peak"] = p2p_r
+                                    latest_telemetry["grad_pct"] = grad
+                                    latest_telemetry["gradient"] = grad
+                                    latest_telemetry["gradient_pct"] = grad
+                                    latest_telemetry["status"] = "NEAR" if is_near else ("FAR" if max_amp > ambient * 2 else "ARMED")
+                                    latest_telemetry["is_near"] = is_near
+                                    latest_telemetry["distance_cm"] = round(dist_cm, 1)
+                                    latest_telemetry["wave_l"] = norm_wl
+                                    latest_telemetry["wave_r"] = norm_wr
+                                    latest_telemetry["audio_pcm"] = raw_wl  # Raw PCM samples for in-browser live listening
+                                    latest_telemetry["spectrum_32"] = active_pred.get("spectrum_32", [0.05]*32)
+                                    latest_telemetry["prediction"] = active_pred
+                                    latest_telemetry["diagnostic_session"] = diag_status
+                                    latest_telemetry["gate"] = {
                                         "state": gate_state,
                                         "is_near": is_near,
                                         "distance_cm": round(dist_cm, 1),
                                         "energy_pct": min(100, int((max_amp / 3200.0) * 100)),
                                         "threshold": thresh,
                                         "ambient": ambient
-                                    },
-                                    "piezo": {
-                                        "baseline": pz_base,
-                                        "amplitude": pz_amp,
-                                        "peak_hold": pz_peak,
-                                        "knock": knock_detected,
-                                        "state": vibe_state
-                                    },
-                                    "learner": learner_info
-                                }
+                                    }
             except Exception as e:
                 print(f"[BRIDGE] Hardware stream interrupted: {e}")
             finally:
