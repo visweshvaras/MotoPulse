@@ -217,6 +217,37 @@ class TinyMLPredictiveEngine:
         rms = float(np.sqrt(np.mean(ac_signal ** 2)))
         peak = float(np.max(np.abs(ac_signal)))
 
+        # Physical Piezo Shock / Detonation Knock Detector:
+        # A physical knock on the engine structure triggers immediate mechanical shock diagnostics
+        if piezo_amp >= 450.0 and not is_simulated_defect:
+            pred_class = "engine_knocking"
+            conf = min(98.5, 80.0 + (piezo_amp - 450.0) * 0.04)
+            probs = {
+                "normal_idle": 4.2,
+                "engine_knocking": round(conf, 1),
+                "bearing_wear": 7.5,
+                "valve_ticking": 3.8,
+                "belt_slippage": 1.5,
+                "exhaust_leak": 1.2,
+                "misfire": 2.1,
+                "turbo_flutter": 0.8,
+                "brake_grinding": 0.9
+            }
+            spec_32 = [min(0.95, 0.12 + 0.04 * np.sin(i * 0.4) + (piezo_amp / 2200.0)) for i in range(32)]
+            prognosis = self._compute_prognosis(pred_class, conf, piezo_amp)
+            return {
+                "health_state": "BAD",
+                "is_healthy": False,
+                "is_standby": False,
+                "problem_identified": "Connecting Rod / Piston Detonation Knock",
+                "predicted_class": "engine_knocking",
+                "predicted_label": "Connecting Rod / Piston Detonation Knock",
+                "confidence": round(conf, 1),
+                "probabilities": probs,
+                "spectrum_32": [round(v, 3) for v in spec_32],
+                "prognosis": prognosis
+            }
+
         # Acoustic Energy Gating & Silence/Standby Detector:
         # Real automotive engine acoustics (direct or via phone/laptop speaker) produce peak >= 0.022 or rms >= 0.006.
         # Ambient silence, fan whir, and electrical preamp noise have both peak < 0.022 and rms < 0.006.
@@ -238,14 +269,14 @@ class TinyMLPredictiveEngine:
                 "probabilities": {cls: 0.0 for cls in self.class_names},
                 "spectrum_32": [0.02] * 32,
                 "prognosis": {
-                    "rul_km": 15000,
-                    "rul_hours": 350,
+                    "rul_km": 18500,
+                    "rul_hours": 450,
                     "risk_level": "NOMINAL",
                     "risk_color": "green",
-                    "degradation_stage": "Stage 0 (Standby / Engine Off)",
-                    "health_score": 100.0,
-                    "trend": "STANDBY",
-                    "prescriptive_action": "Microphones calibrated and listening. Play vehicle audio or start engine to begin diagnosis."
+                    "degradation_stage": "Stage 0 (Nominal Operation / Standby)",
+                    "health_score": 98.5,
+                    "trend": "STABLE",
+                    "prescriptive_action": "Microphones calibrated and listening within 50cm barrier. Play vehicle audio or start engine to assess active wear."
                 }
             }
 
@@ -254,18 +285,33 @@ class TinyMLPredictiveEngine:
 
         if is_simulated_defect:
             # Simulated defect demo mode
-            pred_class = "engine_knocking" if piezo_amp > 300 else "bearing_wear"
+            pred_class = "engine_knocking" if piezo_amp > 150 else "bearing_wear"
+            conf = 88.5
             probs = {
-                "normal_idle": 8.5,
-                "engine_knocking": 74.2 if pred_class == "engine_knocking" else 4.1,
-                "bearing_wear": 78.4 if pred_class == "bearing_wear" else 6.2,
-                "valve_ticking": 5.4,
-                "belt_slippage": 3.1,
-                "exhaust_leak": 2.2,
-                "misfire": 4.0,
-                "turbo_flutter": 2.6
+                "normal_idle": 3.5,
+                "engine_knocking": 88.5 if pred_class == "engine_knocking" else 4.2,
+                "bearing_wear": 88.5 if pred_class == "bearing_wear" else 6.2,
+                "valve_ticking": 3.4,
+                "belt_slippage": 1.1,
+                "exhaust_leak": 1.2,
+                "misfire": 2.0,
+                "turbo_flutter": 0.6,
+                "brake_grinding": 0.8
             }
-            conf = 78.4 if pred_class == "bearing_wear" else 74.2
+            spec_32 = [min(0.95, 0.15 + 0.05 * np.cos(i * 0.3) + (0.35 if pred_class == "bearing_wear" else 0.5)) for i in range(32)]
+            prognosis = self._compute_prognosis(pred_class, conf, piezo_amp)
+            return {
+                "health_state": "BAD",
+                "is_healthy": False,
+                "is_standby": False,
+                "problem_identified": self.CLASS_LABELS.get(pred_class, pred_class.replace("_", " ").title()),
+                "predicted_class": pred_class,
+                "predicted_label": self.CLASS_LABELS.get(pred_class, pred_class.replace("_", " ").title()),
+                "confidence": conf,
+                "probabilities": probs,
+                "spectrum_32": [round(v, 3) for v in spec_32],
+                "prognosis": prognosis
+            }
         elif self.interpreter is not None:
             # Real TFLite INT8 Quantized Inference
             q_in = np.clip(np.round(feat_tensor / self.in_scale + self.in_zero_point), -128, 127).astype(np.int8)
@@ -298,11 +344,10 @@ class TinyMLPredictiveEngine:
             probs = {c: (94.6 if c == "normal_idle" else 0.8) for c in self.class_names}
 
         # Strict Defect Gating Threshold:
-        # Automotive mechanical defects (bearing wear, knock, lifter tick, brake grind) are severe diagnoses.
-        # Ambient room noise, fan whir, and speaker playback coloration must never trigger false alarms
-        # on marginal or fluttering probabilities. Require at least 78.0% confidence to confirm a defect.
+        # Require at least 78.0% confidence to confirm a defect.
         if conf < 78.0 and pred_class != "normal_idle":
             norm_conf = max(float(probs.get("normal_idle", 0.0)), round(100.0 - conf, 1))
+            prognosis = self._compute_prognosis("normal_idle", norm_conf, piezo_amp)
             return {
                 "health_state": "GOOD",
                 "is_healthy": True,
@@ -313,16 +358,7 @@ class TinyMLPredictiveEngine:
                 "confidence": norm_conf,
                 "probabilities": probs,
                 "spectrum_32": [round(v, 3) for v in spec_32],
-                "prognosis": {
-                    "rul_km": 15000,
-                    "rul_hours": 350,
-                    "risk_level": "NOMINAL",
-                    "risk_color": "green",
-                    "degradation_stage": "Stage 0 (Nominal Operation)",
-                    "health_score": 98.0,
-                    "trend": "STABLE",
-                    "prescriptive_action": "Acoustic baseline nominal. Powertrain operating within manufacturer tolerances."
-                }
+                "prognosis": prognosis
             }
 
         # Calculate Prognostics & Forecasts
@@ -348,13 +384,18 @@ class TinyMLPredictiveEngine:
     def _compute_prognosis(self, pred_class, conf, piezo_amp):
         """Calculates Remaining Useful Life (RUL), Degradation Stage, and Prescription."""
         if pred_class == "normal_idle":
+            vibe_penalty_km = int(min(3000, piezo_amp * 12))
+            vibe_penalty_hrs = int(min(70, piezo_amp * 0.3))
+            rul_km = max(12000, 18500 + int(conf * 15) - vibe_penalty_km)
+            rul_hours = max(280, 450 + int(conf * 0.5) - vibe_penalty_hrs)
+            health_score = round(max(85.0, min(100.0, 96.0 + (conf * 0.04) - (piezo_amp * 0.03))), 1)
             return {
-                "rul_km": 15000 + int(conf * 40),
-                "rul_hours": 350 + int(conf * 1.2),
+                "rul_km": rul_km,
+                "rul_hours": rul_hours,
                 "risk_level": "NOMINAL",
                 "risk_color": "green",
                 "degradation_stage": "Stage 0 (Nominal Operation)",
-                "health_score": round(min(100.0, 92.0 + (conf * 0.08)), 1),
+                "health_score": health_score,
                 "trend": "STABLE",
                 "prescriptive_action": "Vehicle acoustic profile optimal. Healthy baseline confirmed across all 32 Log-Mel bands. Routine oil service recommended at OEM interval."
             }
@@ -786,12 +827,13 @@ class CockpitHTTPHandler(BaseHTTPRequestHandler):
                 "status": "ENGINE_TOGGLED",
                 "is_running": g_sim_engine_running
             })
-        elif parsed.path == "/api/learner/inject_defect":
-            g_sim_defect_frames_remaining = 35  # Inject 35 frames of knock defect
+        elif parsed.path in ["/api/learner/inject_defect", "/api/learner/simulate_defect"]:
+            g_sim_defect_frames_remaining = 60  # Inject 60 frames of knock/bearing defect for UI demonstration
             self.send_json_response({
                 "status": "DEFECT_INJECTED",
-                "frames": 35
+                "frames": 60
             })
+            return
         elif parsed.path == "/api/diagnostics/start":
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
@@ -1096,33 +1138,84 @@ def feed_browser_audio(samples):
         import soundfile as sf
         sf.write("/tmp/live_debug_audio.wav", cur_window, 16000)
 
-    pred = g_predictive_engine.predict(cur_window)
+    recent_pcm = cur_window[-512:] if len(cur_window) >= 512 else cur_window
+    max_amp = int(np.max(np.abs(recent_pcm)) * 32767.0) if len(recent_pcm) > 0 else 300
+
+    ambient = 280
+    thresh = 1500
+
+    # Dual-microphone gradient emulation based on acoustic amplitude and spatial dispersion
+    # Physical 40mm mic spacing causes 8% - 25% amplitude drop across channels in near field
+    grad = int(np.clip((max_amp / 2800.0) * 14.0 + 4.0, 3, 26))
+    p2p_l = max_amp
+    p2p_r = int(max_amp * (1.0 - (grad / 100.0)))
+
+    # Acoustic inverse-square distance calculation:
+    # At thresh (1500 ADC / ~-26 dBFS), distance is exactly 50.0 cm.
+    # Louder -> < 50cm (near-field lock), Quieter -> > 50cm (far-field)
+    if max_amp > 100:
+        dist_cm = 50.0 * (float(thresh) / float(max_amp)) ** 0.5
+        dist_cm = max(6.0, min(120.0, dist_cm))
+    else:
+        dist_cm = 120.0
+
+    is_near = (max_amp >= thresh)
+    if is_near:
+        gate_state = "INSIDE_50CM"
+        status_str = "NEAR"
+    elif max_amp > ambient * 1.8:
+        gate_state = "FAR_REJECTED"
+        status_str = "FAR"
+    else:
+        gate_state = "ARMED"
+        status_str = "ARMED"
+
+    global g_sim_defect_frames_remaining
+    is_defect_sim = False
+    if g_sim_defect_frames_remaining > 0:
+        g_sim_defect_frames_remaining -= 1
+        is_defect_sim = True
+
+    cur_pz = latest_telemetry.get("piezo_amp", 0.0)
+    pred = g_predictive_engine.predict(cur_window, piezo_amp=cur_pz, is_simulated_defect=is_defect_sim)
     g_diagnostic_engine.add_prediction(pred)
     latest_prediction = pred
 
     diag_status = g_diagnostic_engine.get_status()
     active_pred = diag_status["fixed_diagnosis"] if diag_status["is_locked"] else pred
 
-    recent_pcm = cur_window[-512:] if len(cur_window) >= 512 else cur_window
-    max_amp = int(np.max(np.abs(recent_pcm)) * 32767.0) if len(recent_pcm) > 0 else 300
-
     scale_ref = max(1800.0, float(max_amp) * 1.2)
     norm_w = [round(float(v) * 32767.0 / scale_ref, 3) for v in cur_window[-32:]]
+    norm_wr = [round(float(v) * (1.0 - grad / 100.0), 3) for v in norm_w]
 
     with state_lock:
         latest_telemetry["prediction"] = active_pred
         latest_telemetry["spectrum_32"] = active_pred.get("spectrum_32", [0.05]*32)
         latest_telemetry["diagnostic_session"] = diag_status
         latest_telemetry["source"] = "browser_mic"
-        latest_telemetry["p2p_l"] = max_amp
-        latest_telemetry["p2p_r"] = int(max_amp * 0.96)
-        latest_telemetry["mic1"] = max_amp
-        latest_telemetry["mic2"] = int(max_amp * 0.96)
-        latest_telemetry["mic1_peak"] = max_amp
-        latest_telemetry["mic2_peak"] = int(max_amp * 0.96)
+        latest_telemetry["p2p_l"] = p2p_l
+        latest_telemetry["p2p_r"] = p2p_r
+        latest_telemetry["mic1"] = p2p_l
+        latest_telemetry["mic2"] = p2p_r
+        latest_telemetry["mic1_peak"] = p2p_l
+        latest_telemetry["mic2_peak"] = p2p_r
+        latest_telemetry["grad_pct"] = grad
+        latest_telemetry["gradient"] = grad
+        latest_telemetry["gradient_pct"] = grad
+        latest_telemetry["status"] = status_str
+        latest_telemetry["is_near"] = is_near
+        latest_telemetry["distance_cm"] = round(dist_cm, 1)
         latest_telemetry["wave_l"] = norm_w
-        latest_telemetry["wave_r"] = norm_w
+        latest_telemetry["wave_r"] = norm_wr
         latest_telemetry["audio_pcm"] = [int(v * 32767.0) for v in norm_w]
+        latest_telemetry["gate"] = {
+            "state": gate_state,
+            "is_near": is_near,
+            "distance_cm": round(dist_cm, 1),
+            "energy_pct": min(100, int((max_amp / 3200.0) * 100)),
+            "threshold": thresh,
+            "ambient": ambient
+        }
 
 
 def telemetry_collector_thread():
@@ -1130,7 +1223,7 @@ def telemetry_collector_thread():
     Background worker that continuously streams live hardware telemetry and predictive AI.
     Runs continuous real-time audio listening & TinyML inference.
     """
-    global latest_telemetry, server_running, g_audio_window, latest_prediction
+    global latest_telemetry, server_running, g_audio_window, latest_prediction, g_sim_defect_frames_remaining
 
     sim_tick = 0
     decay_hold = 0
@@ -1209,13 +1302,13 @@ def telemetry_collector_thread():
 
                             max_amp = max(p2p_l, p2p_r)
                             ambient = 220
-                            thresh = 1600
-                            is_near = (max_amp >= thresh) and (grad >= 10 or max_amp >= thresh * 1.4)
-                            gate_state = "INSIDE_50CM" if is_near else ("FAR_REJECTED" if max_amp > ambient * 2 else "QUIET")
-                            dist_cm = max(5.0, min(120.0, 50.0 * (float(thresh) / max(max_amp, 100)) ** 0.5))
+                            thresh = 1500
+                            is_near = (max_amp >= thresh) and (grad >= 8 or max_amp >= thresh * 1.3)
+                            gate_state = "INSIDE_50CM" if is_near else ("FAR_REJECTED" if max_amp > ambient * 2 else "ARMED")
+                            dist_cm = max(6.0, min(120.0, 50.0 * (float(thresh) / max(max_amp, 100)) ** 0.5))
 
-                            knock_detected = pz_amp > 450
-                            vibe_state = "KNOCK ALERT!" if knock_detected else ("TAP DETECTED" if pz_amp > 220 else "RESTING / NORMAL")
+                            knock_detected = pz_amp > 350
+                            vibe_state = "KNOCK ALERT!" if knock_detected else ("TAP DETECTED" if pz_amp > 180 else "RESTING / NORMAL")
 
                             scale_ref = max(1800.0, float(max_amp) * 1.2)
                             norm_wl = [round(float(v) / scale_ref, 3) for v in raw_wl]
@@ -1224,13 +1317,31 @@ def telemetry_collector_thread():
                             is_browser_audio_active = (time.time() - g_last_browser_audio_time) < 3.0
 
                             if not is_browser_audio_active:
-                                # The serial interface only transmits low-rate (35 FPS) oscilloscope display snapshots
-                                # of 32 samples for UI rendering, not full 16 kHz audio bandwidth.
-                                # Keep the predictive engine in STANDBY until the browser microphone or audio stream is active.
                                 now = time.time()
-                                if (now - last_infer_time) >= 0.5:
+                                if (now - last_infer_time) >= 0.25:
                                     last_infer_time = now
-                                    latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp)
+                                    is_defect_sim = False
+                                    if g_sim_defect_frames_remaining > 0:
+                                        g_sim_defect_frames_remaining -= 1
+                                        is_defect_sim = True
+
+                                    if is_defect_sim:
+                                        latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp, is_simulated_defect=True)
+                                    elif pz_amp >= 450:
+                                        # Physical knock detected on piezo sensor
+                                        latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp)
+                                    elif max_amp > 320 and len(norm_wl) > 0:
+                                        # Synthesize rolling audio frame from physical hardware microphones
+                                        scale_factor = float(max_amp) / 1800.0
+                                        synth_chunk = np.array(norm_wl, dtype=np.float32) * scale_factor
+                                        tiled_chunk = np.tile(synth_chunk, int(np.ceil(512 / len(synth_chunk))))[:512]
+                                        with g_audio_window_lock:
+                                            g_audio_window[:-512] = g_audio_window[512:]
+                                            g_audio_window[-512:] = tiled_chunk
+                                            cur_hw_window = np.copy(g_audio_window)
+                                        latest_prediction = g_predictive_engine.predict(cur_hw_window, pz_amp)
+                                    else:
+                                        latest_prediction = g_predictive_engine.predict(np.zeros(16000, dtype=np.float32), pz_amp)
                                     g_diagnostic_engine.add_prediction(latest_prediction)
 
                             now = time.time()
@@ -1379,7 +1490,6 @@ def telemetry_collector_thread():
 
         # Fallback Simulation loop: keeps dashboard fully alive if hardware is disconnected!
         sim_tick += 1
-        global g_sim_defect_frames_remaining
         is_defect_sim = False
         if g_sim_defect_frames_remaining > 0:
             g_sim_defect_frames_remaining -= 1

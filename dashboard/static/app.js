@@ -358,11 +358,19 @@
     state.targetPiezoAmp = piezoP2p;
     state.piezoRaw = piezoRaw;
 
+    // Dynamic distance tracking
+    let distCm = pkt.distance_cm ?? (pkt.gate && pkt.gate.distance_cm);
+    if (distCm === undefined) {
+      distCm = isNear ? Math.max(10, Math.min(48, Math.round(50 - (grad * 0.9)))) : 105;
+    }
+    state.targetDistance = distCm;
+
     if (isNear) {
       state.isNear = true;
       state.nearHoldFrames = 45; // Hold near-field trigger on UI for ~750ms
-      state.targetDistance = Math.max(10, Math.min(48, Math.round(50 - (grad * 0.9))));
-      registerRadarTarget(state.targetDistance, grad, mic1 > mic2);
+      registerRadarTarget(distCm, grad, mic1 >= mic2);
+    } else if (distCm < 95 && Math.max(mic1, mic2) > 400 && Math.random() < 0.25) {
+      registerRadarTarget(distCm, grad, mic1 >= mic2);
     }
 
     if (isKnock) {
@@ -440,17 +448,18 @@
     // Spatial bearing: Left mic louder -> negative bearing angle (-30° to -75°)
     // Right mic louder -> positive bearing angle (+30° to +75°)
     const baseAngle = isLeftHeavy ? -Math.PI * 0.35 : Math.PI * 0.35;
-    const jitter = (Math.random() - 0.5) * 0.2;
+    const jitter = (Math.random() - 0.5) * 0.25;
     const angle = baseAngle + jitter;
 
-    // Dist ratio: 0cm = 0.05, 50cm = 0.50, 100cm = 1.0
-    const distRatio = Math.max(0.1, Math.min(0.48, distanceCm / 100.0));
+    // Dist ratio: 0cm = 0.12, 50cm = 0.50 (Barrier), 100cm = 0.96
+    const distRatio = Math.max(0.12, Math.min(0.96, distanceCm / 100.0));
 
     state.radarTargets.push({
       angle: angle,
       distRatio: distRatio,
+      distanceCm: Math.round(distanceCm),
       intensity: 1.0,
-      isNear: true,
+      isNear: distanceCm <= 50,
       age: 0
     });
 
@@ -678,6 +687,7 @@
     if (dom.piezoPeak) dom.piezoPeak.textContent = Math.round(state.piezoPeakHold);
 
     // Perimeter Radar state box & threshold meter
+    const curDist = Math.max(5, Math.min(120, Math.round(state.distanceCm)));
     if (state.isNear) {
       if (dom.radarStateBox) {
         dom.radarStateBox.classList.add('pass');
@@ -690,25 +700,39 @@
       }
       if (dom.gateStateIcon) dom.gateStateIcon.textContent = '🎯';
       if (dom.gateStateTitle) dom.gateStateTitle.textContent = 'NEAR-FIELD SOURCE DETECTED';
-      if (dom.gateStateDesc) dom.gateStateDesc.textContent = `4cm array gradient: ${grad}% | Source locked within 50cm`;
+      if (dom.gateStateDesc) dom.gateStateDesc.textContent = `Acoustic Distance: ${curDist}cm | Source locked within 50cm barrier`;
     } else {
+      const isFarNoise = curDist < 95 || state.mic1Peak > 450;
       if (dom.radarStateBox) {
-        dom.radarStateBox.classList.remove('pass', 'reject');
+        dom.radarStateBox.classList.remove('pass');
+        if (isFarNoise) {
+          dom.radarStateBox.classList.add('reject');
+        } else {
+          dom.radarStateBox.classList.remove('reject');
+        }
       }
       if (dom.gateBadge) {
-        dom.gateBadge.textContent = 'ARMED';
-        dom.gateBadge.style.background = '';
-        dom.gateBadge.style.color = '';
+        if (isFarNoise) {
+          dom.gateBadge.textContent = 'FAR REJECTED (>50cm)';
+          dom.gateBadge.style.background = 'rgba(255, 170, 0, 0.15)';
+          dom.gateBadge.style.color = '#ffaa00';
+        } else {
+          dom.gateBadge.textContent = 'ARMED';
+          dom.gateBadge.style.background = '';
+          dom.gateBadge.style.color = '';
+        }
       }
-      if (dom.gateStateIcon) dom.gateStateIcon.textContent = '🛡️';
-      if (dom.gateStateTitle) dom.gateStateTitle.textContent = 'PERIMETER GUARDED';
-      if (dom.gateStateDesc) dom.gateStateDesc.textContent = 'Listening within 50cm barrier... Far-field plane waves rejected';
+      if (dom.gateStateIcon) dom.gateStateIcon.textContent = isFarNoise ? '⛔' : '🛡️';
+      if (dom.gateStateTitle) dom.gateStateTitle.textContent = isFarNoise ? 'FAR-FIELD NOISE REJECTED' : 'PERIMETER GUARDED';
+      if (dom.gateStateDesc) dom.gateStateDesc.textContent = isFarNoise
+        ? `Acoustic Distance: ~${curDist}cm exceeds 50cm boundary — Filtered`
+        : 'Listening within 50cm barrier... Far-field plane waves rejected';
     }
 
     // 0cm to >100cm perimeter fill bar
     if (dom.perimeterFill) {
       // 0cm = 100%, 50cm = 50%, >100cm = 5%
-      const fillPct = Math.max(5, Math.min(98, Math.round(100 - (state.distanceCm * 0.9))));
+      const fillPct = Math.max(5, Math.min(98, Math.round(100 - (state.distanceCm / 100.0) * 95)));
       dom.perimeterFill.style.width = `${fillPct}%`;
       if (state.isNear) {
         dom.perimeterFill.style.background = 'linear-gradient(90deg, #00ff88, #00f0ff)';
@@ -717,6 +741,11 @@
         dom.perimeterFill.style.background = 'linear-gradient(90deg, #3a86ff, #00f0ff)';
         dom.perimeterFill.style.boxShadow = 'none';
       }
+    }
+
+    const targetMark = document.querySelector('.target-mark');
+    if (targetMark) {
+      targetMark.textContent = `50cm Barrier (${curDist}cm)`;
     }
   }
 
@@ -968,24 +997,29 @@
       ctx.save();
       // Blip core
       ctx.beginPath();
-      ctx.arc(bx, by, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 255, 136, ${alpha})`;
-      ctx.shadowColor = '#00ff88';
-      ctx.shadowBlur = 14;
+      ctx.arc(bx, by, blip.isNear ? 5.0 : 4.0, 0, Math.PI * 2);
+      ctx.fillStyle = blip.isNear ? `rgba(0, 255, 136, ${alpha})` : `rgba(0, 240, 255, ${alpha * 0.75})`;
+      ctx.shadowColor = blip.isNear ? '#00ff88' : '#00f0ff';
+      ctx.shadowBlur = blip.isNear ? 16 : 8;
       ctx.fill();
 
       // Expanding radar ripple ring
       const rippleR = 5 + blip.age * 24;
       ctx.beginPath();
       ctx.arc(bx, by, rippleR, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(0, 255, 136, ${alpha * 0.6})`;
+      ctx.strokeStyle = blip.isNear ? `rgba(0, 255, 136, ${alpha * 0.6})` : `rgba(0, 240, 255, ${alpha * 0.4})`;
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Lock label
+      // Lock / Reject label
       ctx.font = '700 8px "JetBrains Mono", monospace';
-      ctx.fillStyle = `rgba(0, 255, 136, ${alpha})`;
-      ctx.fillText(`<50cm LOCK`, bx + 8, by + 3);
+      if (blip.isNear) {
+        ctx.fillStyle = `rgba(0, 255, 136, ${alpha})`;
+        ctx.fillText(`<50cm LOCK (${blip.distanceCm || 35}cm)`, bx + 8, by + 3);
+      } else {
+        ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.85})`;
+        ctx.fillText(`FAR REJECTED (${blip.distanceCm || 75}cm)`, bx + 8, by + 3);
+      }
       ctx.restore();
     }
 
