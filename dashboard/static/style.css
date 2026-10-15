@@ -793,6 +793,12 @@ body {
   box-shadow: 0 0 25px rgba(0, 255, 136, 0.16), inset 0 0 15px rgba(0, 255, 136, 0.04);
 }
 
+.health-hero-banner.standby {
+  background: linear-gradient(135deg, rgba(255, 170, 0, 0.12), rgba(0, 240, 255, 0.04));
+  border: 1.5px solid rgba(255, 170, 0, 0.45);
+  box-shadow: 0 0 22px rgba(255, 170, 0, 0.14), inset 0 0 12px rgba(255, 170, 0, 0.03);
+}
+
 .health-hero-banner.defect {
   background: linear-gradient(135deg, rgba(255, 51, 102, 0.18), rgba(255, 153, 0, 0.09));
   border: 1.5px solid rgba(255, 51, 102, 0.7);
@@ -837,6 +843,12 @@ body {
   background: rgba(0, 255, 136, 0.2);
   color: var(--green);
   border: 1px solid rgba(0, 255, 136, 0.5);
+}
+
+.health-hero-banner.standby .health-hero-badge {
+  background: rgba(255, 170, 0, 0.2);
+  color: var(--orange);
+  border: 1px solid rgba(255, 170, 0, 0.5);
 }
 
 .health-hero-banner.defect .health-hero-badge {

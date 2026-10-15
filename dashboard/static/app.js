@@ -1529,18 +1529,39 @@
     const prog = pred.prognosis || {};
     const probs = pred.probabilities || {};
 
-    // 0. Vehicle Acoustic Health State (GOOD vs BAD) & Problem Identification
-    const isHealthy = pred.is_healthy !== undefined ? Boolean(pred.is_healthy) : (pred.predicted_class === 'normal_idle');
-    const healthState = pred.health_state || (isHealthy ? 'GOOD' : 'BAD');
-    const problemIdentified = pred.problem_identified || (isHealthy ? 'NONE (NORMAL OPERATION)' : (pred.predicted_label || 'MECHANICAL DEFECT'));
+    // 0. Vehicle Acoustic Health State (STANDBY vs GOOD vs BAD) & Problem Identification
+    const isStandby = Boolean(pred.is_standby) || pred.health_state === 'STANDBY' || pred.predicted_class === 'standby';
+    const isHealthy = !isStandby && (pred.is_healthy !== undefined ? Boolean(pred.is_healthy) : (pred.predicted_class === 'normal_idle'));
+    const healthState = isStandby ? 'STANDBY' : (pred.health_state || (isHealthy ? 'GOOD' : 'BAD'));
+    const problemIdentified = pred.problem_identified || (isStandby ? 'NONE (STANDBY / ENGINE OFF)' : (isHealthy ? 'NONE (NORMAL OPERATION)' : (pred.predicted_label || 'MECHANICAL DEFECT')));
 
     if (dom.predHealthBadge) {
-      dom.predHealthBadge.textContent = `HEALTH: ${healthState}`;
-      dom.predHealthBadge.className = `badge ${isHealthy ? 'green' : 'red'}`;
+      if (isStandby) {
+        dom.predHealthBadge.textContent = 'STATUS: STANDBY';
+        dom.predHealthBadge.className = 'badge';
+        dom.predHealthBadge.style.background = 'rgba(255, 170, 0, 0.15)';
+        dom.predHealthBadge.style.color = 'var(--orange)';
+        dom.predHealthBadge.style.borderColor = 'rgba(255, 170, 0, 0.4)';
+      } else {
+        dom.predHealthBadge.textContent = `HEALTH: ${healthState}`;
+        dom.predHealthBadge.className = `badge ${isHealthy ? 'green' : 'red'}`;
+        dom.predHealthBadge.style.background = '';
+        dom.predHealthBadge.style.color = '';
+        dom.predHealthBadge.style.borderColor = '';
+      }
     }
 
     if (dom.healthHeroBanner) {
-      if (isHealthy) {
+      if (isStandby) {
+        dom.healthHeroBanner.className = 'health-hero-banner standby';
+        if (dom.healthHeroIcon) dom.healthHeroIcon.textContent = '🎧';
+        if (dom.healthHeroBadge) dom.healthHeroBadge.textContent = 'VEHICLE ACOUSTIC STATE: STANDBY';
+        if (dom.healthHeroTitle) dom.healthHeroTitle.textContent = 'Awaiting Vehicle Acoustic Sound';
+        if (dom.healthHeroSub) dom.healthHeroSub.textContent = 'Microphone calibrated and listening. Play vehicle audio or start engine to begin predictive diagnostics.';
+        if (dom.problemCard) dom.problemCard.className = 'problem-card standby';
+        if (dom.problemTitle) dom.problemTitle.textContent = 'NONE (STANDBY / ENGINE OFF)';
+        if (dom.problemSub) dom.problemSub.textContent = 'Zero acoustic sound pressure detected. System ready for audio input.';
+      } else if (isHealthy) {
         dom.healthHeroBanner.className = 'health-hero-banner healthy';
         if (dom.healthHeroIcon) dom.healthHeroIcon.textContent = '🟢';
         if (dom.healthHeroBadge) dom.healthHeroBadge.textContent = 'VEHICLE ACOUSTIC STATE: GOOD';

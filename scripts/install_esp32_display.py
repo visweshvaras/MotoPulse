@@ -228,23 +228,20 @@ def run_loop():
         diff = abs(p2p_l - p2p_r)
         grad = (diff * 100) // (max_amp + 1)
 
-        pz_min = 4095
-        pz_max = 0
         pz_samples = []
         for _ in range(16):
-            v = adc.read()
-            pz_samples.append(v)
-            if v < pz_min:
-                pz_min = v
-            if v > pz_max:
-                pz_max = v
-        pz_amp = pz_max - pz_min
+            pz_samples.append(adc.read())
+        pz_mean = sum(pz_samples) // 16
+        dc_piezo = (dc_piezo * 15 + pz_mean) // 16
+        pz_amp = max(abs(v - dc_piezo) for v in pz_samples)
         if pz_amp > decay_peak:
             decay_peak = pz_amp
         else:
             decay_peak = max(0, decay_peak - 25)
 
-        is_running = (max_amp > 800) or (decay_peak > 180)
+        # Real vehicle acoustics or phone audio playback produces max_amp > 4500
+        # Mechanical engine vibration produces piezo decay_peak > 350
+        is_running = (max_amp > 4500) or (decay_peak > 350)
         feat = [float(rms_l), float(hf_flux), float(grad), float(pz_amp), float(decay_peak)]
         lrn_state, lrn_count, lrn_score, lrn_regime = learner.step(feat, is_running)
         is_anomaly = (lrn_state == "ANOMALY")

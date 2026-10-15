@@ -193,7 +193,7 @@ class TinyMLPredictiveEngine:
         # Peak normalize to [-0.95, 0.95] only if signal contains real acoustic energy
         # Never amplify microvolt electrical noise floor into false defects!
         max_val = np.max(np.abs(pcm_16k))
-        if max_val >= 0.025:
+        if max_val >= 0.050:
             pcm_16k = (pcm_16k / max_val) * 0.95
 
         frames = np.lib.stride_tricks.sliding_window_view(pcm_16k, self.frame_len)[::self.frame_step]
@@ -217,28 +217,33 @@ class TinyMLPredictiveEngine:
         rms = float(np.sqrt(np.mean(ac_signal ** 2)))
         peak = float(np.max(np.abs(ac_signal)))
 
-        # If audio energy is below threshold and no mechanical impact, report Standby
-        if (rms < 0.008 or peak < 0.025) and piezo_amp < 120.0 and not is_simulated_defect:
+        # Strict Acoustic Energy Gating & Silence/Standby Detector:
+        # A vehicle engine or audio playback from phone/speaker produces peak >= 0.050 and rms >= 0.016.
+        # Ambient silence, fan whir, and laptop preamp noise have peak < 0.050 or rms < 0.016.
+        is_audio_quiet = (rms < 0.016 or peak < 0.050)
+        is_piezo_idle = (piezo_amp < 350.0)
+
+        if (is_audio_quiet and is_piezo_idle) and not is_simulated_defect:
             self.ema_probs = None
             return {
                 "health_state": "STANDBY",
                 "is_healthy": True,
                 "is_standby": True,
-                "problem_identified": "None (Listening / Engine Off)",
+                "problem_identified": "None (Listening / Standby)",
                 "predicted_class": "standby",
                 "predicted_label": "Standby (Listening for Vehicle Acoustics...)",
                 "confidence": 0.0,
                 "probabilities": {cls: 0.0 for cls in self.class_names},
-                "spectrum_32": [0.03] * 32,
+                "spectrum_32": [0.02] * 32,
                 "prognosis": {
                     "rul_km": 15000,
                     "rul_hours": 350,
                     "risk_level": "NOMINAL",
                     "risk_color": "green",
-                    "degradation_stage": "Stage 0 (Standby / Ambient Silence)",
+                    "degradation_stage": "Stage 0 (Standby / Engine Off)",
                     "health_score": 100.0,
                     "trend": "STANDBY",
-                    "prescriptive_action": "Microphone active. Awaiting vehicle acoustic sound. Play engine audio to perform diagnostic classification."
+                    "prescriptive_action": "Microphones calibrated and listening. Play vehicle audio or start engine to begin diagnosis."
                 }
             }
 
@@ -289,6 +294,31 @@ class TinyMLPredictiveEngine:
             conf = 94.6
             probs = {c: (94.6 if c == "normal_idle" else 0.8) for c in self.class_names}
 
+        # Low confidence squelch: Non-automotive background noises (speech, clicks, ambient)
+        # must never trigger severe defect alarms like Misfire or Bearing Wear.
+        if conf < 52.0 and pred_class != "normal_idle":
+            return {
+                "health_state": "STANDBY",
+                "is_healthy": True,
+                "is_standby": True,
+                "problem_identified": "None (Awaiting Clear Vehicle Acoustics)",
+                "predicted_class": "standby",
+                "predicted_label": f"Monitoring (Low Confidence: {conf:.1f}%)",
+                "confidence": round(conf, 1),
+                "probabilities": probs,
+                "spectrum_32": [round(v, 3) for v in spec_32],
+                "prognosis": {
+                    "rul_km": 15000,
+                    "rul_hours": 350,
+                    "risk_level": "NOMINAL",
+                    "risk_color": "green",
+                    "degradation_stage": "Stage 0 (Ambient Monitoring)",
+                    "health_score": 100.0,
+                    "trend": "STANDBY",
+                    "prescriptive_action": "Ambiguous acoustic signature detected. Play audio clearly to obtain precise diagnosis."
+                }
+            }
+
         # Calculate Prognostics & Forecasts
         prognosis = self._compute_prognosis(pred_class, conf, piezo_amp)
 
@@ -299,6 +329,7 @@ class TinyMLPredictiveEngine:
         return {
             "health_state": health_state,
             "is_healthy": is_healthy,
+            "is_standby": False,
             "problem_identified": problem_identified,
             "predicted_class": pred_class,
             "predicted_label": self.CLASS_LABELS.get(pred_class, pred_class.replace("_", " ").title()),
@@ -1116,8 +1147,8 @@ def telemetry_collector_thread():
                             gate_state = "INSIDE_50CM" if is_near else ("FAR_REJECTED" if max_amp > ambient * 2 else "QUIET")
                             dist_cm = max(5.0, min(120.0, 50.0 * (float(thresh) / max(max_amp, 100)) ** 0.5))
 
-                            knock_detected = pz_amp > 350
-                            vibe_state = "KNOCK ALERT!" if knock_detected else ("TAP DETECTED" if pz_amp > 150 else "RESTING / NORMAL")
+                            knock_detected = pz_amp > 450
+                            vibe_state = "KNOCK ALERT!" if knock_detected else ("TAP DETECTED" if pz_amp > 220 else "RESTING / NORMAL")
 
                             scale_ref = max(1800.0, float(max_amp) * 1.2)
                             norm_wl = [round(float(v) / scale_ref, 3) for v in raw_wl]
@@ -1126,13 +1157,16 @@ def telemetry_collector_thread():
                             is_browser_audio_active = (time.time() - g_last_browser_audio_time) < 3.0
 
                             if not is_browser_audio_active:
-                                # Accumulate into 16,000-sample rolling audio buffer
-                                new_pcm_floats = np.array(raw_wl, dtype=np.float32) / 32768.0
-                                with g_audio_window_lock:
-                                    shift_len = len(new_pcm_floats)
-                                    g_audio_window[:-shift_len] = g_audio_window[shift_len:]
-                                    g_audio_window[-shift_len:] = new_pcm_floats
-                                    cur_window = np.copy(g_audio_window)
+                                # When ambient noise is low (<3000 counts), keep buffer clear in standby
+                                if max_amp < 3000:
+                                    cur_window = np.zeros(16000, dtype=np.float32)
+                                else:
+                                    new_pcm_floats = np.array(raw_wl, dtype=np.float32) / 32768.0
+                                    with g_audio_window_lock:
+                                        shift_len = len(new_pcm_floats)
+                                        g_audio_window[:-shift_len] = g_audio_window[shift_len:]
+                                        g_audio_window[-shift_len:] = new_pcm_floats
+                                        cur_window = np.copy(g_audio_window)
 
                                 # Run TinyML Predictive Prognostics Inference every 150ms
                                 now = time.time()
